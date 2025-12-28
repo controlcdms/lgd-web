@@ -1,8 +1,8 @@
 import Link from "next/link";
-import ProjectsGrid from "./ProjectsGrid";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
+import ProjectsClient from "./ProjectsClient";
 
 type M2O = false | [number, string];
 
@@ -25,6 +25,7 @@ export default async function Dashboard() {
 
   const githubId =
     (session as any)?.user?.githubId ?? (session as any)?.githubId;
+
   if (!githubId) {
     return (
       <main className="min-h-screen p-6 text-white">
@@ -42,9 +43,7 @@ export default async function Dashboard() {
 
   const r = await fetch(`${origin}/api/odoo/projects`, {
     cache: "no-store",
-    headers: {
-      "x-github-id": String(githubId), // ✅ identidad explícita
-    },
+    headers: { "x-github-id": String(githubId) },
   });
 
   const data = await r.json();
@@ -66,16 +65,14 @@ export default async function Dashboard() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">LGD Dashboard</h1>
-          <Link className="text-sm underline text-white/80" href="/">
-            Home
-          </Link>
+          <Link className="text-sm underline text-white/80" href="/">Home</Link>
         </div>
 
-        {projects.length === 0 && (
+        {projects.length === 0 ? (
           <div className="text-sm text-white/70">No hay proyectos.</div>
+        ) : (
+          <ProjectsClient projects={projects} />
         )}
-
-   <ProjectsGrid projects={projects} />
       </div>
     </main>
   );
