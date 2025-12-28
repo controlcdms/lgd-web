@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ProjectsGrid from "./ProjectsGrid";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
@@ -74,47 +75,7 @@ export default async function Dashboard() {
           <div className="text-sm text-white/70">No hay proyectos.</div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-2xl border border-white/20 p-4 bg-white/5"
-            >
-              <div className="font-semibold text-lg">{p.repo_name}</div>
-
-              <div className="text-xs text-white/60 mt-1">
-                {p.owner_id ? `Owner: ${p.owner_id[1]}` : "Owner: -"}
-                {p.user_id ? ` • User: ${p.user_id[1]}` : ""}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {typeof p.active === "boolean" && (
-                  <span className="text-xs rounded-full border border-white/30 px-2 py-1 text-white/80">
-                    {p.active ? "active" : "inactive"}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex items-center gap-3 text-xs">
-                {p.html_url && (
-                  <a
-                    className="underline text-white/80"
-                    href={p.html_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    repo
-                  </a>
-                )}
-                {p.ssh_url && (
-                  <span className="text-white/50 truncate" title={p.ssh_url}>
-                    ssh: {p.ssh_url}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+   <ProjectsGrid projects={projects} />
       </div>
     </main>
   );

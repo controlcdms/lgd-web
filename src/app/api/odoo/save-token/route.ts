@@ -1,79 +1,41 @@
+// src/app/api/odoo/save-token/route.ts
 import { NextResponse } from "next/server";
-import { odooCall, odooSearchRead } from "@/lib/odoo";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { odooSearchRead, odooWrite } from "@/lib/odoo";
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
-    // ✅ 1) Intenta identidad explícita (SSR)
-    const githubIdFromHeader = req.headers.get("x-github-id");
+    const body = await req.json();
+    const { github_login, email, access_token } = body;
 
-    // ✅ 2) Si no vino header, cae a sesión normal (client-side)
-    let githubId: string | null = githubIdFromHeader;
-
-    if (!githubId) {
-      const session = await getServerSession(authOptions);
-      githubId = (session as any)?.user?.githubId ?? (session as any)?.githubId ?? null;
-      if (!githubId) {
-        return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
-      }
+    if (!access_token) {
+      return NextResponse.json({ ok: false, error: "missing token" }, { status: 400 });
+    }
+    if (!github_login && !email) {
+      return NextResponse.json({ ok: false, error: "missing github_login/email" }, { status: 400 });
     }
 
-    const usersByUid = await odooSearchRead(
+    // 1) Buscar usuario en Odoo (por login o email)
+    const domain = email
+      ? ["|", ["login", "=", github_login], ["login", "=", email]]
+      : [["login", "=", github_login]];
+
+    const users = await odooSearchRead(
       "res.users",
-      [["oauth_uid", "=", String(githubId)]],
-      ["id", "login", "oauth_uid"],
-      5
+      domain as any,
+      ["id", "login", "name"],
+      1
     );
 
-    const odooUserId = usersByUid?.[0]?.id ?? null;
-    if (!odooUserId) {
-      return NextResponse.json(
-        { ok: false, error: "Usuario Odoo no encontrado por oauth_uid", githubId, usersByUid },
-        { status: 404 }
-      );
+    if (!users?.length) {
+      return NextResponse.json({ ok: false, error: "user not found in odoo" }, { status: 404 });
     }
 
-    const reposCountAll = await odooCall<number>("server.repos", "search_count", [[]]);
+    const userId = users[0].id;
 
-    const sample = await odooSearchRead(
-      "server.repos",
-      [],
-      ["id", "repo_name", "user_id", "owner_id", "login_user"],
-      10
-    );
+    // 2) Guardar token en oauth_access_token
+    const ok = await odooWrite("res.users", [userId], { oauth_access_token: access_token });
 
-    const projects = await odooSearchRead(
-      "server.repos",
-      ["|", ["user_id", "=", odooUserId], ["owner_id", "=", odooUserId]],
-      [
-        "id",
-        "repo_name",
-        "project_states",
-        "type_deploy_repository",
-        "active",
-        "base_version",
-        "branch_version",
-        "image_type_scope",
-        "user_id",
-        "login_user",
-        "owner_id",
-        "html_url",
-        "ssh_url",
-      ],
-      200
-    );
-
-    return NextResponse.json({
-      ok: true,
-      debug: {
-        githubId,
-        odooUserId,
-        reposCountAll,
-        sample_len: sample.length,
-      },
-      projects,
-    });
+    return NextResponse.json({ ok: !!ok, userId });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
   }
