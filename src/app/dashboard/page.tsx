@@ -4,28 +4,11 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import ProjectsClient from "./ProjectsClient";
 
-type M2O = false | [number, string];
-
-type Project = {
-  id: number;
-  repo_name: string;
-  progress_status?: string;
-  active?: boolean;
-  base_version?: string;
-  branch_version?: string;
-  user_id?: M2O;
-  owner_id?: M2O;
-  html_url?: string;
-  ssh_url?: string;
-};
-
 export default async function Dashboard() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/api/auth/signin");
 
-  const githubId =
-    (session as any)?.user?.githubId ?? (session as any)?.githubId;
-
+  const githubId = (session as any)?.user?.githubId ?? (session as any)?.githubId;
   if (!githubId) {
     return (
       <main className="min-h-screen p-6 text-white">
@@ -47,7 +30,6 @@ export default async function Dashboard() {
   });
 
   const data = await r.json();
-
   if (!r.ok || data?.ok === false) {
     return (
       <main className="min-h-screen p-6 text-white">
@@ -58,7 +40,7 @@ export default async function Dashboard() {
     );
   }
 
-  const projects: Project[] = data.projects ?? [];
+  const projects = data.projects ?? [];
 
   return (
     <main className="min-h-screen p-6 text-white">
@@ -68,11 +50,7 @@ export default async function Dashboard() {
           <Link className="text-sm underline text-white/80" href="/">Home</Link>
         </div>
 
-        {projects.length === 0 ? (
-          <div className="text-sm text-white/70">No hay proyectos.</div>
-        ) : (
-          <ProjectsClient projects={projects} />
-        )}
+        <ProjectsClient projects={projects} />
       </div>
     </main>
   );
