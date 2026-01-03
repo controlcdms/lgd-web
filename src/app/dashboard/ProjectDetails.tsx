@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Modal,
+  Button,
+  TextInput,
+  Select,
+  Alert,
+  Group,
+  Stack,
+  Loader,
+} from "@mantine/core";
 
 type Branch = {
   id: number;
@@ -18,21 +28,58 @@ type DeployType =
 
 type ActionKind = "start" | "stop" | "expire";
 
+type DefaultsResp = {
+  ok: boolean;
+  error?: string;
+  defaults?: {
+    base_version?: { id: number | false; name: string | false };
+    release_default?: { id: number | false; name: string | false };
+    releases?: { id: number; name: string }[];
+    license?: { id: number | false; name: string | false };
+    server?: { id: number | false; name: string | false };
+  };
+};
+
+function validateBranchName(name: string) {
+  const v = name.trim();
+  if (!v) return "Ponle nombre a la rama";
+  if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(v)) {
+    return "Solo letras, números, - o _ (no empieza con número)";
+  }
+  return null;
+}
+
 export default function ProjectDetails({ projectId }: { projectId: number | null }) {
   // data
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // acciones por rama
-  const [busy, setBusy] = useState<Record<number, ActionKind | null>>({});
-  const isBusy = (branchId: number) => !!busy[branchId];
+  // ✅ acciones por rama (SIN nulls)
+  const [busy, setBusy] = useState<Partial<Record<number, ActionKind>>>({});
+  const isBusy = (branchId: number) => busy[branchId] !== undefined;
 
   // crear rama
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<DeployType>("staging_deploy");
   const [creating, setCreating] = useState(false);
+
+  // defaults de Odoo para mostrar versión/release
+  const [defaultsLoading, setDefaultsLoading] = useState(false);
+  const [baseVersionName, setBaseVersionName] = useState<string | null>(null);
+  const [releaseOptions, setReleaseOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null);
+
+  const resetCreateState = () => {
+    setShowCreate(false);
+    setNewName("");
+    setNewType("staging_deploy");
+    setDefaultsLoading(false);
+    setBaseVersionName(null);
+    setReleaseOptions([]);
+    setSelectedReleaseId(null);
+  };
 
   const reload = () => {
     if (!projectId) return;
@@ -54,13 +101,16 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       .finally(() => setLoading(false));
   };
 
+  // ✅ cargar ramas al cambiar projectId
   useEffect(() => {
+    // importantísimo: limpiar busy al cambiar de proyecto
+    setBusy({});
+
     if (!projectId) {
       setBranches([]);
       setLoading(false);
       setError(null);
-      setShowCreate(false);
-      setNewName("");
+      resetCreateState();
       return;
     }
 
@@ -91,29 +141,73 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return () => controller.abort();
   }, [projectId]);
 
+  // ✅ cargar defaults cuando se abre el modal o cambia el tipo
+  useEffect(() => {
+    if (!projectId) return;
+    if (!showCreate) return;
+
+    const controller = new AbortController();
+
+    setDefaultsLoading(true);
+    setError(null);
+    setBaseVersionName(null);
+    setReleaseOptions([]);
+    setSelectedReleaseId(null);
+
+    const url =
+      `/api/odoo/projects/${projectId}/branches/create-defaults` +
+      `?deployType=${encodeURIComponent(newType)}` +
+      `&t=${Date.now()}`;
+
+    fetch(url, { cache: "no-store", signal: controller.signal })
+      .then(async (r) => {
+        const d = (await r.json().catch(() => ({}))) as DefaultsResp;
+        if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
+        return d;
+      })
+      .then((d) => {
+        const baseName = d.defaults?.base_version?.name;
+        setBaseVersionName(baseName ? String(baseName) : null);
+
+        const releases = d.defaults?.releases || [];
+        setReleaseOptions(releases.map((x) => ({ value: String(x.id), label: x.name })));
+
+        const defId = d.defaults?.release_default?.id;
+        if (defId !== undefined && defId !== null && defId !== false) {
+          setSelectedReleaseId(String(defId));
+        } else {
+          setSelectedReleaseId(null);
+        }
+      })
+      .catch((e: any) => {
+        if (e?.name === "AbortError") return;
+        setError(e?.message || "Error cargando defaults");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDefaultsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [projectId, showCreate, newType]);
+
   async function createBranch() {
     if (!projectId) return;
 
     const name = newName.trim();
-
-    // validaciones básicas tipo LGD
-    if (!name) {
-      setError("Ponle nombre a la rama");
-      return;
-    }
-    if (/[\\s!@#$%^&*(),.?":{}|<>]/.test(name)) {
-      setError("El nombre no puede tener espacios ni caracteres raros");
-      return;
-    }
-    if (/^[0-9]/.test(name)) {
-      setError("El nombre no puede empezar con número");
+    const v = validateBranchName(name);
+    if (v) {
+      setError(v);
       return;
     }
 
-    // confirm solo si es producción
     if (newType === "production_deploy") {
       const ok = confirm("¿Seguro? Esto creará una rama de PRODUCCIÓN.");
       if (!ok) return;
+    }
+
+    if (releaseOptions.length > 0 && !selectedReleaseId) {
+      setError("Elige un release");
+      return;
     }
 
     setCreating(true);
@@ -124,14 +218,17 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ name, type_deploy: newType }),
+        body: JSON.stringify({
+          name,
+          type_deploy: newType,
+          base_version_tag_id: selectedReleaseId ? parseInt(selectedReleaseId, 10) : null,
+        }),
       });
 
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
 
-      setShowCreate(false);
-      setNewName("");
+      resetCreateState();
       reload();
     } catch (e: any) {
       setError(e?.message || "Error creando rama");
@@ -162,7 +259,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     } catch (e: any) {
       setError(e?.message || "Error ejecutando acción");
     } finally {
-      setBusy((p) => ({ ...p, [branchId]: null }));
+      setBusy((p) => {
+        const n = { ...p };
+        delete n[branchId]; // ✅ no dejes null
+        return n;
+      });
     }
   }
 
@@ -180,77 +281,43 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         <h3 className="text-lg font-semibold">Ramas</h3>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreate((v) => !v)}
-            className="text-xs rounded-lg border border-white/20 px-3 py-1 text-white/70 hover:text-white hover:border-white/40"
-            title="Añadir rama"
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setShowCreate(true);
+            }}
+            // 👇 si esto sigue “gris”, NO es tu state: es overlay / CSS
+            disabled={false}
           >
             ＋ Añadir rama
-          </button>
+          </Button>
 
-          <button
-            onClick={reload}
-            disabled={loading}
-            className="text-xs rounded-lg border border-white/20 px-3 py-1 text-white/70 hover:text-white hover:border-white/40 disabled:opacity-50"
-            title="Refrescar"
-          >
+          <Button size="xs" variant="outline" onClick={reload} disabled={loading}>
             ⟳ Actualizar
-          </button>
+          </Button>
         </div>
       </div>
 
-      {showCreate && (
-        <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3">
-          <div className="flex flex-wrap gap-2 items-center">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="nombre rama (sin espacios)"
-              className="w-64 rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white outline-none"
-            />
-
-            <select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as DeployType)}
-              className="rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white outline-none"
-              title="Tipo"
-            >
-              <option value="staging_deploy">staging</option>
-              <option value="testing_deploy">testing</option>
-              <option value="local_deploy">local</option>
-              <option value="production_deploy">production</option>
-            </select>
-
-            <button
-              onClick={createBranch}
-              disabled={creating}
-              className="px-3 py-2 text-sm rounded-lg border border-emerald-400/60 text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-50"
-            >
-              {creating ? "⏳ Creando..." : "Crear"}
-            </button>
-
-            <button
-              onClick={() => {
-                setShowCreate(false);
-                setNewName("");
-              }}
-              disabled={creating}
-              className="px-3 py-2 text-sm rounded-lg border border-white/20 text-white/70 hover:border-white/40 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-          </div>
-
-          <div className="mt-2 text-xs text-white/50">
-            Reglas: sin espacios / sin símbolos raros / no empieza con número.
-          </div>
-        </div>
+      {error && (
+        <Alert
+          mb="sm"
+          color="red"
+          title="Ojo"
+          variant="light"
+          withCloseButton
+          onClose={() => setError(null)}
+        >
+          {error}
+        </Alert>
       )}
 
-      {loading && <div className="text-sm text-white/60">Cargando ramas…</div>}
-
-      {!loading && error && (
-        <div className="text-sm text-red-200/90 mb-2">⚠️ {error}</div>
+      {loading && (
+        <Group gap="sm">
+          <Loader size="sm" />
+          <div className="text-sm text-white/60">Cargando ramas…</div>
+        </Group>
       )}
 
       {!loading && !error && branches.length === 0 && (
@@ -266,42 +333,129 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             <div className="min-w-0">
               <div className="font-medium">{b.name}</div>
               <div className="text-xs text-white/60">
-                {(b.type_deploy || "-")} · {(b.branch_status || "-")} ·{" "}
-                {(b.container_status || "-")}
+                {(b.type_deploy || "-")} · {(b.branch_status || "-")} · {(b.container_status || "-")}
               </div>
             </div>
 
             <div className="flex gap-2 shrink-0">
-              <button
+              <Button
+                size="xs"
+                variant="outline"
+                loading={busy[b.id] === "start"}
+                disabled={isBusy(b.id)}
                 onClick={() => runAction(b.id, "start")}
-                disabled={isBusy(b.id)}
-                className="px-3 py-1 text-xs rounded-lg border border-emerald-400/60 text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-50"
-                title="Iniciar"
               >
-                {busy[b.id] === "start" ? "⏳" : "▶"} Iniciar
-              </button>
+                ▶ Iniciar
+              </Button>
 
-              <button
+              <Button
+                size="xs"
+                variant="outline"
+                loading={busy[b.id] === "stop"}
+                disabled={isBusy(b.id)}
                 onClick={() => runAction(b.id, "stop")}
-                disabled={isBusy(b.id)}
-                className="px-3 py-1 text-xs rounded-lg border border-yellow-400/60 text-yellow-300 hover:bg-yellow-400/10 disabled:opacity-50"
-                title="Detener"
               >
-                {busy[b.id] === "stop" ? "⏳" : "⏸"} Detener
-              </button>
+                ⏸ Detener
+              </Button>
 
-              <button
-                onClick={() => runAction(b.id, "expire")}
+              <Button
+                size="xs"
+                color="red"
+                variant="outline"
+                loading={busy[b.id] === "expire"}
                 disabled={isBusy(b.id)}
-                className="px-3 py-1 text-xs rounded-lg border border-red-400/60 text-red-300 hover:bg-red-400/10 disabled:opacity-50"
-                title="Expirar"
+                onClick={() => runAction(b.id, "expire")}
               >
-                {busy[b.id] === "expire" ? "⏳" : "🗑"} Expirar
-              </button>
+                🗑 Expirar
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      <Modal
+        opened={showCreate}
+        onClose={() => {
+          if (creating) return;
+          setShowCreate(false);
+        }}
+        title="Crear rama"
+        centered
+      >
+        <Stack gap="sm">
+          <TextInput
+            value={newName}
+            onChange={(e) => setNewName(e.currentTarget.value)}
+            label="Nombre"
+            error={newName ? validateBranchName(newName) : null}
+            disabled={creating}
+          />
+
+          <Select
+            label="Tipo"
+            value={newType}
+            onChange={(v) => {
+              const t = (v as DeployType) || "staging_deploy";
+              setNewType(t);
+              setSelectedReleaseId(null);
+              setError(null);
+            }}
+            data={[
+              { value: "staging_deploy", label: "staging" },
+              { value: "testing_deploy", label: "testing" },
+              { value: "local_deploy", label: "local" },
+              { value: "production_deploy", label: "production" },
+            ]}
+            disabled={creating}
+          />
+
+          {defaultsLoading ? (
+            <Group gap="sm">
+              <Loader size="sm" />
+              <div className="text-sm">Cargando versión y releases…</div>
+            </Group>
+          ) : (
+            <>
+              <div className="text-xs text-white/60">
+                Versión (base): <b>{baseVersionName || "-"}</b>
+              </div>
+
+              <Select
+                label="Release"
+                placeholder={releaseOptions.length ? "Elige release" : "No hay releases publish"}
+                value={selectedReleaseId}
+                onChange={setSelectedReleaseId}
+                data={releaseOptions}
+                disabled={creating || releaseOptions.length === 0}
+                searchable
+                nothingFoundMessage="Nada"
+              />
+            </>
+          )}
+
+          <div className="text-xs text-white/60">
+            Reglas: sin espacios / sin símbolos raros / no empieza con número.
+          </div>
+
+          <Group justify="flex-end" mt="xs">
+            <Button
+              variant="default"
+              onClick={() => {
+                if (creating) return;
+                setError(null);
+                resetCreateState();
+              }}
+              disabled={creating}
+            >
+              Cancelar
+            </Button>
+
+            <Button onClick={createBranch} loading={creating}>
+              Crear
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }
