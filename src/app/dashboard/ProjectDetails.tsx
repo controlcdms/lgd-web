@@ -278,38 +278,22 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   return (
     
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 9999,
-        padding: 6,
-        marginBottom: 8,
-        background: "rgba(255,0,0,0.15)",
-        border: "1px solid rgba(255,0,0,0.5)",
-        color: "#ff6b6b",
-        fontSize: 12,
-      }}
-    >
-      DEBUG: ProjectDetails Ramas (render OK) · loading={String(loading)} ·
-      showCreate={String(showCreate)}
-    </div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Ramas</h3>
 
         <div className="flex items-center gap-2">
-<Button
-  size="xs"
-  variant="outline"
-  style={{ pointerEvents: "auto", zIndex: 9999 }}
-  onClick={() => console.log("CLICK REAL")}
->
-  ＋ Añadir rama
-</Button>
-
-
-
-
+ <Button
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setShowCreate(true);
+            }}
+            // 👇 si esto sigue “gris”, NO es tu state: es overlay / CSS
+            disabled={false}
+          >
+            ＋ Añadir rama
+          </Button>
           <Button size="xs" variant="outline" onClick={reload} disabled={loading}>
             ⟳ Actualizar
           </Button>
