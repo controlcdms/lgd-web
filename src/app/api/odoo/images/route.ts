@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooCall } from "@/lib/odoo";
 
 export async function GET() {
   try {
@@ -11,25 +11,15 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
     }
 
-    // puedes filtrar publish si quieres, pero para “Imágenes” normalmente quieres ver TODO
-    const domain: any[] = [];
+    // si quieres filtrar por usuario actual en Odoo, acá deberías mapearlo a res.users
+    // por ahora: traemos todo (o mete dominio por user_id si tu modelo lo tiene)
+    const domain: any[] = []; // ej: [["user_id", "=", odooUserId]]
 
-    const images = await odooSearchRead(
+    const images = await odooCall<any[]>(
       "doodba.template",
-      domain,
-      [
-        "id",
-        "name",
-        "branch_version",
-        "image_type_scope",
-        // si existen en tu modelo, luego activas:
-        // "state",
-        // "repo_full_name",
-        // "pip_packages",
-      ],
-      500,
-      0,
-      "create_date desc"
+      "search_read",
+      [domain, ["id", "name", "branch_version", "image_type_scope", "state"]],
+      { limit: 200, order: "id desc" }
     );
 
     return NextResponse.json({ ok: true, images });

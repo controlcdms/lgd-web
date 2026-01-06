@@ -294,9 +294,6 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           >
             ＋ Añadir rama
           </Button>
-          <Button size="xs" variant="outline" onClick={reload} disabled={loading}>
-            ⟳ Actualizar
-          </Button>
         </div>
       </div>
 

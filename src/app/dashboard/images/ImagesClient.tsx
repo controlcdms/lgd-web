@@ -1,22 +1,37 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import CreateImageModal from "./CreateImageModal";
+import CreateTagModal from "./CreateTagModal";
 
 type ImageRow = {
   id: number;
   name?: string;
   branch_version?: string;      // “18.0”
   image_type_scope?: string;    // private_image / public_image
-  state?: string;              // si existe (release/publish/etc)
-  repo_full_name?: string;      // si existe
-  pip_packages?: any;           // si existe
+  state?: string;              // release/building/etc
+  repo_full_name?: string;
+  pip_packages?: any[];
+  resume?: string;
 };
 
 export default function ImagesClient() {
+  const router = useRouter();
+
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [images, setImages] = useState<ImageRow[]>([]);
+
+  const [showNewImage, setShowNewImage] = useState(false);
+
+  // publish modal (solo para publicar, no para detalle)
+  const [publishTarget, setPublishTarget] = useState<{
+    id: number;
+    name: string;
+    resume?: string;
+  } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -27,7 +42,7 @@ export default function ImagesClient() {
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar imágenes");
       setImages(j.images || []);
     } catch (e: any) {
-      setErr(e?.message || "Error");
+      setErr(e?.message || "Error cargando imágenes");
       setImages([]);
     } finally {
       setLoading(false);
@@ -60,6 +75,10 @@ export default function ImagesClient() {
     return "-";
   };
 
+  function goDetail(id: number) {
+    router.push(`/dashboard/images/${id}`);
+  }
+
   return (
     <div className="text-white">
       <div className="flex items-center justify-between gap-3">
@@ -70,7 +89,7 @@ export default function ImagesClient() {
 
         <div className="flex gap-2">
           <button
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
             onClick={load}
             disabled={loading}
           >
@@ -79,12 +98,27 @@ export default function ImagesClient() {
 
           <button
             className="rounded-xl bg-green-600 px-3 py-2 text-sm hover:bg-green-500"
-            onClick={() => alert("Aquí luego conectamos 'Nueva imagen'")}
+            onClick={() => setShowNewImage(true)}
           >
             + Nueva imagen
           </button>
         </div>
       </div>
+
+      <CreateImageModal
+        open={showNewImage}
+        onClose={() => setShowNewImage(false)}
+        onCreated={() => load()}
+      />
+
+      <CreateTagModal
+        opened={!!publishTarget}
+        onClose={() => setPublishTarget(null)}
+        templateId={publishTarget?.id || null}
+        templateName={publishTarget?.name}
+        defaultResume={publishTarget?.resume}
+        onPublished={() => load()}
+      />
 
       {/* cards */}
       <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -121,7 +155,7 @@ export default function ImagesClient() {
         </div>
       )}
 
-      {/* table */}
+      {/* list */}
       <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
         <div className="bg-zinc-950/60 px-4 py-3 text-xs text-white/60">
           NOMBRE • VERSIÓN • ESTADO • TIPO • ACCIONES
@@ -134,7 +168,11 @@ export default function ImagesClient() {
         ) : (
           <div className="divide-y divide-white/10">
             {filtered.map((img) => (
-              <div key={img.id} className="p-4 bg-white/5">
+              <div
+                key={img.id}
+                className="p-4 bg-white/5 hover:bg-white/10 cursor-pointer"
+                onClick={() => goDetail(img.id)}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="font-semibold text-lg truncate">
@@ -145,7 +183,6 @@ export default function ImagesClient() {
                       {img.repo_full_name || "-"}
                     </div>
 
-                    {/* chips ejemplo (si luego tienes pip_packages) */}
                     {Array.isArray(img.pip_packages) && img.pip_packages.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {img.pip_packages.slice(0, 12).map((p: any, idx: number) => (
@@ -175,28 +212,39 @@ export default function ImagesClient() {
 
                     <button
                       className="text-xs rounded-lg bg-blue-600 px-3 py-2 hover:bg-blue-500"
-                      onClick={() => alert("Publicar: luego conectamos endpoint")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPublishTarget({
+                          id: img.id,
+                          name: img.name || `#${img.id}`,
+                          resume: img.resume,
+                        });
+                      }}
                     >
                       Publicar
                     </button>
 
                     <button
                       className="text-xs rounded-lg border border-white/15 bg-white/5 px-3 py-2 hover:bg-white/10"
-                      onClick={() => alert("Dependencias: luego conectamos")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/images/${img.id}?tab=deps`);
+                      }}
                     >
                       Dependencias
                     </button>
 
                     <button
                       className="text-xs rounded-lg bg-red-600 px-3 py-2 hover:bg-red-500"
-                      onClick={() => alert("Eliminar: luego conectamos endpoint")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        alert("Eliminar: luego conectamos endpoint");
+                      }}
                     >
                       Eliminar
                     </button>
                   </div>
                 </div>
-
-                {/* “Historial de publicaciones” lo metemos cuando me digas el modelo/relación */}
               </div>
             ))}
           </div>

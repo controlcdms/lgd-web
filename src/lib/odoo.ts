@@ -13,11 +13,7 @@ async function odooLogin(): Promise<{ uid: number; cookie: string }> {
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "call",
-      params: {
-        db: ODOO_DB,
-        login: ODOO_LOGIN,
-        password: ODOO_PASSWORD,
-      },
+      params: { db: ODOO_DB, login: ODOO_LOGIN, password: ODOO_PASSWORD },
     }),
     cache: "no-store",
   });
@@ -48,25 +44,14 @@ export async function odooCall<T = Json>(
 
   const r = await fetch(`${ODOO_URL}/jsonrpc`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: cookie,
-    },
+    headers: { "Content-Type": "application/json", Cookie: cookie },
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "call",
       params: {
         service: "object",
         method: "execute_kw",
-        args: [
-          ODOO_DB,
-          uid,                // ✅ INT
-          ODOO_PASSWORD,
-          model,
-          method,
-          args,
-          kwargs,
-        ],
+        args: [ODOO_DB, uid, ODOO_PASSWORD, model, method, args, kwargs],
       },
     }),
     cache: "no-store",
@@ -91,12 +76,11 @@ export async function odooSearchRead(
   offset = 0,
   order = ""
 ) {
-  return odooCall<any[]>(
-    model,
-    "search_read",
-    [domain, fields],
-    { limit, offset, order }
-  );
+  return odooCall<any[]>(model, "search_read", [domain, fields], {
+    limit,
+    offset,
+    order,
+  });
 }
 
 export async function odooWrite(
@@ -105,4 +89,13 @@ export async function odooWrite(
   values: Record<string, any>
 ) {
   return odooCall<boolean>(model, "write", [ids, values]);
+}
+
+export async function odooCreate(model: string, values: Record<string, any>) {
+  return odooCall<number>(model, "create", [values]);
+}
+
+export async function odooExecute(model: string, method: string, ids: number[]) {
+  // para métodos tipo: recordset.method()
+  return odooCall<any>(model, method, [ids]);
 }
