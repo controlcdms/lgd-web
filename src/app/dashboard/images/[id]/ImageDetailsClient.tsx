@@ -14,7 +14,13 @@ type ImageDetail = {
   pip_packages?: any[];
   description?: string;
   resume?: string;
-  // luego: releases / tags / history
+};
+
+type ReleaseRow = {
+  id: number;
+  name?: string;
+  ref?: string;
+  create_date?: string;
 };
 
 export default function ImageDetailsClient({
@@ -25,17 +31,32 @@ export default function ImageDetailsClient({
   tab?: string;
 }) {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [img, setImg] = useState<ImageDetail | null>(null);
+
   const [showPublish, setShowPublish] = useState(false);
+
+  const [releases, setReleases] = useState<ReleaseRow[]>([]);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releasesErr, setReleasesErr] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setErr(null);
     try {
       const r = await fetch(`/api/odoo/images/${imageId}`, { cache: "no-store" });
-      const j = await r.json();
+
+      // ✅ si backend devuelve HTML por error, esto te salva del JSON.parse roto
+      const txt = await r.text();
+      let j: any = null;
+      try {
+        j = JSON.parse(txt);
+      } catch {
+        throw new Error(txt?.slice(0, 200) || "Respuesta no-JSON");
+      }
+
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar detalle");
       setImg(j.image || null);
     } catch (e: any) {
@@ -46,9 +67,36 @@ export default function ImageDetailsClient({
     }
   }
 
+  async function loadReleases() {
+    setReleasesLoading(true);
+    setReleasesErr(null);
+    try {
+      const r = await fetch(`/api/odoo/images/${imageId}/releases`, {
+        cache: "no-store",
+      });
+
+      const txt = await r.text();
+      let j: any = null;
+      try {
+        j = JSON.parse(txt);
+      } catch {
+        throw new Error(txt?.slice(0, 200) || "Respuesta no-JSON");
+      }
+
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar releases");
+      setReleases(j.releases || []);
+    } catch (e: any) {
+      setReleasesErr(e?.message || "Error releases");
+      setReleases([]);
+    } finally {
+      setReleasesLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!imageId) return;
     load();
+    loadReleases();
   }, [imageId]);
 
   const badgeType = (t?: string) => {
@@ -68,9 +116,7 @@ export default function ImageDetailsClient({
         <div>
           <div className="text-white/60 text-sm">Imagen</div>
           <h1 className="text-2xl font-semibold">{img?.name || `#${imageId}`}</h1>
-          <div className="text-white/50 text-sm mt-1">
-            {img?.repo_full_name || "-"}
-          </div>
+          <div className="text-white/50 text-sm mt-1">{img?.repo_full_name || "-"}</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -79,14 +125,6 @@ export default function ImageDetailsClient({
             onClick={() => router.push("/dashboard/images")}
           >
             ← Volver
-          </button>
-
-          <button
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-            onClick={load}
-            disabled={loading}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
           </button>
 
           <button
@@ -113,7 +151,10 @@ export default function ImageDetailsClient({
         templateId={img?.id || null}
         templateName={img?.name}
         defaultResume={img?.resume}
-        onPublished={() => load()}
+        onPublished={() => {
+          load();
+          loadReleases();
+        }}
       />
 
       {err && (
@@ -123,6 +164,7 @@ export default function ImageDetailsClient({
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        {/* LEFT */}
         <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-sm text-white/60">Detalles</div>
 
@@ -164,8 +206,51 @@ export default function ImageDetailsClient({
               </div>
             )}
           </div>
+
+          {/* RELEASES */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-white/60">Releases</div>
+
+              <button
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                onClick={loadReleases}
+                disabled={releasesLoading}
+              >
+                {releasesLoading ? "Actualizando..." : "Actualizar"}
+              </button>
+            </div>
+
+            {releasesErr && (
+              <div className="mt-2 text-sm text-red-300">{releasesErr}</div>
+            )}
+
+            {releasesLoading ? (
+              <div className="mt-2 text-sm text-white/60">Cargando...</div>
+            ) : releases.length === 0 ? (
+              <div className="mt-2 text-sm text-white/60">-</div>
+            ) : (
+              <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+                <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
+                  NOMBRE • REF • FECHA
+                </div>
+                <div className="divide-y divide-white/10">
+                  {releases.map((r) => (
+                    <div key={r.id} className="px-4 py-3 hover:bg-white/5">
+                      <div className="font-medium">{r.name || `#${r.id}`}</div>
+                      <div className="mt-1 text-xs text-white/60 flex flex-wrap gap-3">
+                        <span>ref: {r.ref || "-"}</span>
+                        <span>fecha: {r.create_date || "-"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* RIGHT */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-sm text-white/60">Acciones</div>
 
@@ -192,6 +277,10 @@ export default function ImageDetailsClient({
           )}
         </div>
       </div>
+
+      {loading && (
+        <div className="mt-4 text-sm text-white/60">Cargando detalle...</div>
+      )}
     </div>
   );
 }

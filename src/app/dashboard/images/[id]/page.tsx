@@ -1,17 +1,22 @@
+import { notFound } from "next/navigation";
 import ImageDetailsClient from "./ImageDetailsClient";
 
-export default function ImageDetailsPage({
+export default async function ImageDetailsPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams?: { tab?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
-  const id = Number(params.id);
-  const tab = searchParams?.tab || "";
+  const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+
+  const imageId = Number(id);
+  if (!Number.isFinite(imageId)) return notFound();
+
   return (
     <div className="p-6">
-      <ImageDetailsClient imageId={id} tab={tab} />
+      <ImageDetailsClient imageId={imageId} tab={sp.tab || ""} />
     </div>
   );
 }

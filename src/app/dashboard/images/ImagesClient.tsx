@@ -89,14 +89,6 @@ export default function ImagesClient() {
 
         <div className="flex gap-2">
           <button
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-            onClick={load}
-            disabled={loading}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
-
-          <button
             className="rounded-xl bg-green-600 px-3 py-2 text-sm hover:bg-green-500"
             onClick={() => setShowNewImage(true)}
           >
@@ -120,21 +112,8 @@ export default function ImagesClient() {
         onPublished={() => load()}
       />
 
-      {/* cards */}
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/60">Total de imágenes</div>
-          <div className="text-2xl font-semibold mt-1">{total}</div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/60">Imágenes públicas</div>
-          <div className="text-2xl font-semibold mt-1">{publicCount}</div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/60">Imágenes privadas</div>
-          <div className="text-2xl font-semibold mt-1">{privateCount}</div>
-        </div>
-      </div>
+      
+      
 
       {/* search */}
       <div className="mt-5 flex items-center gap-3">
@@ -179,9 +158,9 @@ export default function ImagesClient() {
                       {img.name || `#${img.id}`}
                     </div>
 
-                    <div className="text-xs text-white/50 mt-1 truncate">
+                    {/* <div className="text-xs text-white/50 mt-1 truncate">
                       {img.repo_full_name || "-"}
-                    </div>
+                    </div> */}
 
                     {Array.isArray(img.pip_packages) && img.pip_packages.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -210,39 +189,6 @@ export default function ImagesClient() {
                       {badgeType(img.image_type_scope)}
                     </span>
 
-                    <button
-                      className="text-xs rounded-lg bg-blue-600 px-3 py-2 hover:bg-blue-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPublishTarget({
-                          id: img.id,
-                          name: img.name || `#${img.id}`,
-                          resume: img.resume,
-                        });
-                      }}
-                    >
-                      Publicar
-                    </button>
-
-                    <button
-                      className="text-xs rounded-lg border border-white/15 bg-white/5 px-3 py-2 hover:bg-white/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/dashboard/images/${img.id}?tab=deps`);
-                      }}
-                    >
-                      Dependencias
-                    </button>
-
-                    <button
-                      className="text-xs rounded-lg bg-red-600 px-3 py-2 hover:bg-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        alert("Eliminar: luego conectamos endpoint");
-                      }}
-                    >
-                      Eliminar
-                    </button>
                   </div>
                 </div>
               </div>
