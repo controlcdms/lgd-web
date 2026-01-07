@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import ImageDetailsClient from "./ImageDetailsClient";
 
 export default async function ImageDetailsPage({
@@ -8,15 +7,15 @@ export default async function ImageDetailsPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ tab?: string }>;
 }) {
-  const { id } = await params;
-  const sp = searchParams ? await searchParams : {};
+  const p = await params;
+  const sp = (await searchParams) || {};
 
-  const imageId = Number(id);
-  if (!Number.isFinite(imageId)) return notFound();
+  const id = Number(p.id);
+  const tab = sp.tab || "";
 
   return (
     <div className="p-6">
-      <ImageDetailsClient imageId={imageId} tab={sp.tab || ""} />
+      <ImageDetailsClient imageId={id} tab={tab} />
     </div>
   );
 }
