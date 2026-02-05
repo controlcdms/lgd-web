@@ -20,53 +20,40 @@ export async function POST(req: Request) {
     const branch_version = String(body?.branch_version || "17.0");
     const image_type_scope = String(body?.image_type_scope || "private_image");
     const description = String(body?.description || "");
-    const commit = String(body?.commit || "").trim(); // opcional
+    const custom_commit = Boolean(body?.custom_commit);
+    const commit = String(body?.commit || "").trim();
 
     if (!name) {
       return NextResponse.json({ ok: false, error: "Falta name" }, { status: 400 });
     }
 
-    // reglas básicas (parecidas a tu wizard Odoo, pero light)
+    // reglas básicas
     if (!/^[a-z][a-z0-9-]*$/.test(name)) {
       return NextResponse.json(
         { ok: false, error: "Nombre inválido: usa minúsculas, números y guiones; empieza con letra." },
         { status: 400 }
       );
     }
-    if (!["16.0", "17.0", "18.0"].includes(branch_version)) {
-      return NextResponse.json({ ok: false, error: "branch_version inválido" }, { status: 400 });
-    }
-    if (!["private_image", "public_image"].includes(image_type_scope)) {
-      return NextResponse.json({ ok: false, error: "image_type_scope inválido" }, { status: 400 });
-    }
 
-    // OJO: en tu wizard Odoo validabas "por usuario". Aquí, como estamos usando credenciales técnicas,
-    // solo aseguramos unicidad por name (si quieres, luego filtramos por user_id real).
-    const existing = await odooCall<any[]>(
-      "doodba.template",
-      "search_read",
-      [[["name", "=", name]], ["id"]],
-      { limit: 1 }
-    );
-    if (existing.length) {
-      return NextResponse.json({ ok: false, error: "Ya existe una imagen con ese nombre" }, { status: 400 });
-    }
-
-    const vals: Record<string, any> = {
+    const payload = {
+      oauth_uid: String(githubId),
       name,
       branch_version,
       image_type_scope,
-      state: "name",
+      description,
+      custom_commit,
+      commit,
     };
-    if (description) vals.description = description;
 
-    // si en tu modelo existe campo "commit" o similar, lo seteas aquí
-    // (si no existe, bórralo)
-    if (commit) vals.commit = commit;
+    const result = await odooCall<{ ok: boolean; image_id: number }>(
+      "create.image.wizard",
+      "create_from_api",
+      [payload]
+    );
 
-    const newId = await odooCall<number>("doodba.template", "create", [vals], {});
-    return NextResponse.json({ ok: true, id: newId });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Error" }, { status: 500 });
+    return NextResponse.json({ ok: true, result });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: msg || "Error" }, { status: 500 });
   }
 }

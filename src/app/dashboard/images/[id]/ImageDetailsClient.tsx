@@ -260,10 +260,8 @@ export default function ImageDetailsClient({
           {isDeps && (
             <div className="mt-4">
               <ImageDependenciesPanel
-                imageId={imageId}
-                pipPackages={pip}
-                aptPackages={apt}
-                onReload={() => {
+                templateId={imageId}
+                onSaved={() => {
                   load();
                   loadReleases();
                 }}

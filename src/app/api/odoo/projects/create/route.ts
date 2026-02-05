@@ -11,41 +11,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const name = String(body?.name || "").trim();
-    const baseVersion = Number(body?.base_version);
+    const base_version_id = Number(body?.base_version_id || body?.base_version || 0);
 
     if (!name) {
       return NextResponse.json({ ok: false, error: "Falta name" }, { status: 400 });
     }
-    if (!baseVersion) {
-      return NextResponse.json(
-        { ok: false, error: "Falta base_version" },
-        { status: 400 }
-      );
+    if (!base_version_id) {
+      return NextResponse.json({ ok: false, error: "Falta base_version_id" }, { status: 400 });
     }
 
-    // 1) Crear wizard transient
-    const wizId = await odooCall<number>("create.repo.modern", "create", [
-      {
-        name,
-        base_version: baseVersion,
-        // opcional: si quieres forzar defaults del wizard
-        type_deploy_repository: "production_deploy",
-        terms_and_conditions: true,
-        personal_data_treatment: true,
-      },
-    ]);
+    const payload = {
+      oauth_uid: String(githubId),
+      name,
+      base_version_id,
+      base_version_tag_id: body?.base_version_tag_id ? Number(body.base_version_tag_id) : undefined,
+      type_deploy_repository: String(body?.type_deploy_repository || "production_deploy"),
+      webhook_alternative: body?.webhook_alternative ?? true,
+      deploy_in_my_servers: body?.deploy_in_my_servers ?? false,
+      developer_mode: body?.developer_mode ?? false,
+    };
 
-    // 2) Ejecutar creación real
-    await odooCall<boolean>("create.repo.modern", "add_repo", [[wizId]]);
-
-    return NextResponse.json({ ok: true, wizard_id: wizId });
-  } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Error" },
-      { status: 500 }
+    const result = await odooCall<{ ok: boolean; repository_id: number }>(
+      "create.repo.modern",
+      "create_from_api",
+      [payload]
     );
+
+    return NextResponse.json({ ok: true, result });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: msg || "Error" }, { status: 500 });
   }
 }

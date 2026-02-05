@@ -64,6 +64,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<DeployType>("staging_deploy");
   const [creating, setCreating] = useState(false);
+  const [creatingProd, setCreatingProd] = useState(false);
 
   // defaults de Odoo para mostrar versión/release
   const [defaultsLoading, setDefaultsLoading] = useState(false);
@@ -190,6 +191,37 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return () => controller.abort();
   }, [projectId, showCreate, newType]);
 
+  async function createProductionAuto() {
+    if (!projectId) return;
+
+    const ok = confirm("¿Crear rama de PRODUCCIÓN para este proyecto?");
+    if (!ok) return;
+
+    setCreatingProd(true);
+    setError(null);
+
+    try {
+      const r = await fetch(`/api/odoo/branches/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          repository_id: projectId,
+          type: "production",
+        }),
+      });
+
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
+
+      reload();
+    } catch (e: any) {
+      setError(e?.message || "Error creando production");
+    } finally {
+      setCreatingProd(false);
+    }
+  }
+
   async function createBranch() {
     if (!projectId) return;
 
@@ -267,43 +299,139 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
+  // Agrupamiento por entorno
+  const groupedBranches = {
+    production: branches.filter((b) => b.type_deploy === "production_deploy"),
+    staging: branches.filter((b) => b.type_deploy === "staging_deploy"),
+    testing: branches.filter((b) => b.type_deploy === "testing_deploy"),
+    local: branches.filter((b) => b.type_deploy === "local_deploy"),
+    other: branches.filter((b) => !["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"].includes(b.type_deploy || "")),
+  };
+
+  const renderBranchGroup = (title: string, items: Branch[], colorClass: string) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="mb-8 last:mb-0">
+        <div className={`text-xs font-bold uppercase tracking-widest mb-3 ${colorClass} flex items-center gap-2`}>
+          <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+          {title}
+        </div>
+        <div className="space-y-3">
+          {items.map((b) => renderBranchCard(b))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBranchCard = (b: Branch) => {
+    const isRunning = b.container_status === "running";
+    const statusColor = isRunning ? "text-emerald-400" : "text-zinc-500";
+    const statusBg = isRunning ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/5 border-white/10";
+
+    return (
+      <div
+        key={b.id}
+        className={`group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border p-4 transition-all duration-200 ${statusBg} hover:bg-opacity-50 hover:border-white/20`}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm text-white/90">{b.name}</span>
+            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${b.branch_status === 'created' ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/40 bg-white/5'
+              }`}>
+              {b.branch_status || "UNKNOWN"}
+            </span>
+          </div>
+          <div className="text-xs text-white/50 mt-1 flex items-center gap-2 font-mono">
+            <span className={statusColor}>● {b.container_status || "STOPPED"}</span>
+            {/* Aquí podriamos poner commit hash si tuvieramos el dato */}
+          </div>
+        </div>
+
+        <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="xs"
+            variant="default"
+            className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
+            loading={busy[b.id] === "start"}
+            disabled={isBusy(b.id)}
+            onClick={() => runAction(b.id, "start")}
+          >
+            ▶ Start
+          </Button>
+
+          <Button
+            size="xs"
+            variant="default"
+            className="bg-black/20 hover:bg-yellow-900/40 hover:text-yellow-200 border-white/10"
+            loading={busy[b.id] === "stop"}
+            disabled={isBusy(b.id)}
+            onClick={() => runAction(b.id, "stop")}
+          >
+            ⏸ Stop
+          </Button>
+
+          <Button
+            size="xs"
+            variant="default"
+            className="bg-black/20 hover:bg-red-900/40 hover:text-red-200 border-white/10"
+            loading={busy[b.id] === "expire"}
+            disabled={isBusy(b.id)}
+            onClick={() => runAction(b.id, "expire")}
+          >
+            🗑 Kill
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   if (!projectId) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-        Selecciona un proyecto para ver sus ramas.
+      <div className="animate-in fade-in flex items-center justify-center h-full text-sm text-white/30 font-mono border border-dashed border-white/10 rounded-2xl bg-white/5 min-h-[300px]">
+        SELECT_PROJECT_MODULE_INITIALIZED...
       </div>
     );
   }
 
   return (
-    
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Ramas</h3>
+    <div className="animate-in slide-in-from-right-4 fade-in duration-300 rounded-2xl border border-white/10 bg-[#0c0c0e] p-6 shadow-2xl">
+      <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+        <div>
+          <h3 className="text-xl font-bold text-white tracking-tight">Environments</h3>
+          <p className="text-xs text-white/40 font-mono mt-1">Deployments & Container Orchestration</p>
+        </div>
 
         <div className="flex items-center gap-2">
- <Button
-            size="xs"
-            variant="outline"
+          {groupedBranches.production.length === 0 && (
+            <button
+              className="flex items-center gap-2 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 text-rose-300 border border-rose-500/30 px-3 py-1.5 text-xs font-mono transition-colors disabled:opacity-60"
+              disabled={creatingProd}
+              onClick={createProductionAuto}
+            >
+              {creatingProd ? "..." : "⚠"} CREATE_PROD
+            </button>
+          )}
+
+          <button
+            className="flex items-center gap-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-3 py-1.5 text-xs font-mono transition-colors"
             onClick={() => {
               setError(null);
               setShowCreate(true);
             }}
-            // 👇 si esto sigue “gris”, NO es tu state: es overlay / CSS
-            disabled={false}
           >
-            ＋ Añadir rama
-          </Button>
+            <span>＋</span> NEW_BRANCH
+          </button>
         </div>
       </div>
 
       {error && (
         <Alert
-          mb="sm"
+          mb="xl"
           color="red"
-          title="Ojo"
+          title="System Alert"
           variant="light"
           withCloseButton
+          className="bg-red-500/10 border border-red-500/20 text-red-200"
           onClose={() => setError(null)}
         >
           {error}
@@ -311,64 +439,27 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       )}
 
       {loading && (
-        <Group gap="sm">
-          <Loader size="sm" />
-          <div className="text-sm text-white/60">Cargando ramas…</div>
-        </Group>
+        <div className="flex flex-col items-center justify-center py-12 gap-3 text-white/50">
+          <Loader size="sm" color="blue" />
+          <div className="text-xs font-mono animate-pulse">SYNCING_DATA_STREAMS...</div>
+        </div>
       )}
 
       {!loading && !error && branches.length === 0 && (
-        <div className="text-sm text-white/60">Este proyecto no tiene ramas.</div>
+        <div className="py-12 text-center text-white/30 text-sm font-mono border border-white/5 rounded-xl bg-white/5">
+          NO_ACTIVE_DEPLOYMENTS
+        </div>
       )}
 
-      <div className="space-y-2">
-        {branches.map((b) => (
-          <div
-            key={b.id}
-            className="rounded-xl border border-white/20 p-3 bg-white/5 flex items-center justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <div className="font-medium">{b.name}</div>
-              <div className="text-xs text-white/60">
-                {(b.type_deploy || "-")} · {(b.branch_status || "-")} · {(b.container_status || "-")}
-              </div>
-            </div>
-
-            <div className="flex gap-2 shrink-0">
-              <Button
-                size="xs"
-                variant="outline"
-                loading={busy[b.id] === "start"}
-                disabled={isBusy(b.id)}
-                onClick={() => runAction(b.id, "start")}
-              >
-                ▶ Iniciar
-              </Button>
-
-              <Button
-                size="xs"
-                variant="outline"
-                loading={busy[b.id] === "stop"}
-                disabled={isBusy(b.id)}
-                onClick={() => runAction(b.id, "stop")}
-              >
-                ⏸ Detener
-              </Button>
-
-              <Button
-                size="xs"
-                color="red"
-                variant="outline"
-                loading={busy[b.id] === "expire"}
-                disabled={isBusy(b.id)}
-                onClick={() => runAction(b.id, "expire")}
-              >
-                🗑 Expirar
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {!loading && (
+        <div>
+          {renderBranchGroup("PRODUCTION", groupedBranches.production, "text-rose-400")}
+          {renderBranchGroup("STAGING", groupedBranches.staging, "text-amber-400")}
+          {renderBranchGroup("TESTING", groupedBranches.testing, "text-cyan-400")}
+          {renderBranchGroup("LOCAL DEV", groupedBranches.local, "text-blue-400")}
+          {renderBranchGroup("OTHERS", groupedBranches.other, "text-zinc-400")}
+        </div>
+      )}
 
       <Modal
         opened={showCreate}
@@ -376,20 +467,31 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           if (creating) return;
           setShowCreate(false);
         }}
-        title="Crear rama"
+        title={<span className="font-mono text-sm uppercase tracking-widest text-white/70">Init New Branch</span>}
         centered
+        className="dark-modal"
+        styles={{
+          content: { backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)' },
+          header: { backgroundColor: '#09090b' },
+          body: { backgroundColor: '#09090b' }
+        }}
       >
-        <Stack gap="sm">
+        <Stack gap="md">
           <TextInput
+            data-autofocus
             value={newName}
             onChange={(e) => setNewName(e.currentTarget.value)}
-            label="Nombre"
+            label={<span className="text-xs uppercase text-white/50 font-bold">Branch Name</span>}
+            placeholder="feat-new-module"
             error={newName ? validateBranchName(newName) : null}
             disabled={creating}
+            classNames={{
+              input: "bg-white/5 border-white/10 text-white focus:border-blue-500/50"
+            }}
           />
 
           <Select
-            label="Tipo"
+            label={<span className="text-xs uppercase text-white/50 font-bold">Environment Type</span>}
             value={newType}
             onChange={(v) => {
               const t = (v as DeployType) || "staging_deploy";
@@ -398,45 +500,53 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               setError(null);
             }}
             data={[
-              { value: "staging_deploy", label: "staging" },
-              { value: "testing_deploy", label: "testing" },
-              { value: "local_deploy", label: "local" },
-              { value: "production_deploy", label: "production" },
+              { value: "production_deploy", label: "🔴 PRODUCTION" },
+              { value: "staging_deploy", label: "🟡 Staging" },
+              { value: "testing_deploy", label: "🔵 Testing" },
+              { value: "local_deploy", label: "⚪ Local" },
             ]}
             disabled={creating}
+            classNames={{
+              input: "bg-white/5 border-white/10 text-white"
+            }}
           />
 
           {defaultsLoading ? (
-            <Group gap="sm">
-              <Loader size="sm" />
-              <div className="text-sm">Cargando versión y releases…</div>
+            <Group gap="sm" className="py-2">
+              <Loader size="xs" color="blue" />
+              <div className="text-xs font-mono text-white/50">Fetching base images...</div>
             </Group>
           ) : (
-            <>
-              <div className="text-xs text-white/60">
-                Versión (base): <b>{baseVersionName || "-"}</b>
+            <div className="bg-white/5 rounded-lg p-3 border border-white/5 space-y-3">
+              <div className="text-xs text-white/50 flex justify-between">
+                <span>Base Architecture:</span>
+                <b className="text-white font-mono">{baseVersionName || "N/A"}</b>
               </div>
 
               <Select
-                label="Release"
-                placeholder={releaseOptions.length ? "Elige release" : "No hay releases publish"}
+                label={<span className="text-xs uppercase text-white/50 font-bold">Release Tag</span>}
+                placeholder={releaseOptions.length ? "Select release tag" : "No stable releases found"}
                 value={selectedReleaseId}
                 onChange={setSelectedReleaseId}
                 data={releaseOptions}
                 disabled={creating || releaseOptions.length === 0}
                 searchable
-                nothingFoundMessage="Nada"
+                nothingFoundMessage="No releases"
+                classNames={{
+                  input: "bg-black/20 border-white/10 text-white placeholder-white/20"
+                }}
               />
-            </>
+            </div>
           )}
 
-          <div className="text-xs text-white/60">
-            Reglas: sin espacios / sin símbolos raros / no empieza con número.
+          <div className="text-[10px] text-white/30 font-mono bg-blue-900/10 p-2 rounded border border-blue-500/10">
+            RULES: alphanumeric-only • no-spaces • star-wars-references-encouraged
           </div>
 
           <Group justify="flex-end" mt="xs">
             <Button
               variant="default"
+              className="bg-transparent border-white/10 text-white/60 hover:text-white"
               onClick={() => {
                 if (creating) return;
                 setError(null);
@@ -444,11 +554,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               }}
               disabled={creating}
             >
-              Cancelar
+              Cancel
             </Button>
 
-            <Button onClick={createBranch} loading={creating}>
-              Crear
+            <Button onClick={createBranch} loading={creating} color="blue">
+              Initialize
             </Button>
           </Group>
         </Stack>
