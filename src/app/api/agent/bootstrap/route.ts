@@ -62,16 +62,28 @@ EOF
 # Descarga de dashboard runtime (lgd.py) desde templates.
 # Nota: en panel.letsgodeploy.com el template run.sh está devolviendo 500;
 # generamos un run.sh mínimo local.
+# Descargar el paquete venv (init.sh + run.sh + requirements.txt + lgd.py)
+# Nota: run.sh del panel estaba dando 500, por eso lo generamos desde aquí.
 echo "-> Descargando lgd.py"
 curl -fsSL "$PANEL_URL/get_template_dc?template_name=lgd.py.jinja" -o lgd.py
+
+echo "-> Descargando requirements.txt"
+curl -fsSL "$PANEL_URL/get_template_dc?template_name=requirements.txt" -o requirements.txt
+
+echo "-> Descargando init.sh"
+curl -fsSL "$PANEL_URL/get_template_dc?template_name=init.sh" -o init.sh
+chmod +x init.sh || true
 
 echo "-> Generando run.sh"
 cat > run.sh <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ejecuta el dashboard/agent (Flask) local
-python3 lgd.py
+# Activar venv
+# shellcheck disable=SC1091
+source env/bin/activate
+
+python lgd.py
 SH
 chmod +x run.sh || true
 
