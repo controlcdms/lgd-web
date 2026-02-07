@@ -50,10 +50,18 @@ echo "== LGD Agent bootstrap =="
 echo "Panel: $PANEL_URL"
 
 echo "-> Generando .env (sin tunnelkey)"
+# Necesario para la función de "DB start/stop" del dashboard.
+# Si luego usas docker compose para Odoo, ese stack debe usar la misma clave.
+POSTGRES_PASSWORD_GEN=$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(24))
+PY
+)
 cat > .env <<EOF
 # generado por lgd-agent-bootstrap
 PANEL_URL=$PANEL_URL
 TOKEN_LGD=$TOKEN_LGD
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD_GEN
 # compat legacy
 URL=$PANEL_URL
 TOKEN=$TOKEN_LGD
