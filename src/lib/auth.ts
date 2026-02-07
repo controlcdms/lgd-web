@@ -43,19 +43,25 @@ export const authOptions: NextAuthOptions = {
       try {
         const access_token = account?.access_token;
         const github_login = (profile as any)?.login;
-        const email = (profile as any)?.email;
+        const github_id = (profile as any)?.id;
 
         if (!access_token || !github_login) return true;
 
         const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        await fetch(`${base}/api/odoo/save-token`, {
+        // Upsert user in Odoo (create if missing) so Next is the UI entrypoint.
+        await fetch(`${base}/api/odoo/me/upsert-user`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token, github_login, email }),
+          body: JSON.stringify({
+            access_token,
+            github_login,
+            github_id,
+          }),
         });
 
         return true;
       } catch {
+        // Best-effort: do not block login if Odoo sync fails.
         return true;
       }
     },
