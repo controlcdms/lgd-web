@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const items = [
   { href: "/dashboard", label: "Proyectos", icon: "📁" },
@@ -10,6 +11,32 @@ const items = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenErr, setTokenErr] = useState<string | null>(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+
+  const loadToken = async () => {
+    try {
+      setTokenLoading(true);
+      setTokenErr(null);
+      const r = await fetch("/api/odoo/me/token-lgd", { cache: "no-store" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
+      setToken(String(d.token_lgd));
+    } catch (e: any) {
+      setToken(null);
+      setTokenErr(e?.message || "No se pudo cargar token");
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Lazy-load token on first mount; it's per-user.
+    loadToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <aside className="h-screen w-64 shrink-0 border-r border-white/5 bg-[#0c0c0e] relative flex flex-col">
@@ -45,7 +72,74 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
+      <div className="p-4 border-t border-white/5 space-y-3">
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              // Línea directa (sin modo seguro): descarga bootstrap y lo ejecuta.
+              // Nota: el param se llama token pero el valor es token_lgd.
+              const cmd = token
+                ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
+                : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
+              await navigator.clipboard.writeText(cmd);
+            } catch {
+              // ignore
+            }
+          }}
+          className="group w-full flex items-center justify-between rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-100 border border-blue-500/30 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
+          title={token ? "Copiar comando de instalación (incluye token_lgd)" : "Copiar comando de instalación"}
+          disabled={tokenLoading}
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">⬇</span>
+            COPY_INSTALL_CMD
+          </span>
+          <span className="text-[10px] text-blue-100/60">curl|bash</span>
+        </button>
+
+        <a
+          href={token ? `/api/agent/bootstrap?token=${token}` : "/api/agent/bootstrap"}
+          target="_blank"
+          rel="noreferrer"
+          className="group flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 px-3 py-2 text-xs font-mono transition-colors"
+          title="Descargar bootstrap del agente (script)"
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">📄</span>
+            DOWNLOAD_AGENT
+          </span>
+          <span className="text-[10px] text-white/40">.sh</span>
+        </a>
+
+        <button
+          type="button"
+          onClick={async () => {
+            if (!token) {
+              await loadToken();
+              return;
+            }
+            await navigator.clipboard.writeText(token);
+          }}
+          className="group w-full flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
+          title={token ? "Copiar token_lgd" : "Cargar token_lgd"}
+          disabled={tokenLoading}
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">🔑</span>
+            {token ? "COPY_TOKEN" : tokenLoading ? "LOADING_TOKEN..." : "GET_TOKEN"}
+          </span>
+          <span className="text-[10px] text-white/40">
+            {token ? `${token.slice(0, 6)}…${token.slice(-4)}` : tokenErr ? "ERR" : ""}
+          </span>
+        </button>
+
+        {tokenErr ? (
+          <div className="text-[10px] text-rose-300/70 font-mono px-1">
+            {tokenErr}
+          </div>
+        ) : null}
+
         <div className="rounded-xl bg-white/5 p-3 flex items-center gap-3 border border-white/5">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
             OP
