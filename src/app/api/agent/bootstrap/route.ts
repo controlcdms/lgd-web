@@ -81,11 +81,20 @@ cp secrets/environment_variables.txt .env
 if ! grep -qE '^URL=' .env; then echo "URL=$PANEL_URL" >> .env; fi
 if ! grep -qE '^TOKEN=' .env; then echo "TOKEN=$TOKEN_LGD" >> .env; fi
 
-# Descarga de dashboard runtime (lgd.py + run.sh) desde templates
-# (estos endpoints ya existen en el panel)
-echo "-> Descargando lgd.py + run.sh"
+# Descarga de dashboard runtime (lgd.py) desde templates.
+# Nota: en panel.letsgodeploy.com el template run.sh está devolviendo 500;
+# generamos un run.sh mínimo local.
+echo "-> Descargando lgd.py"
 curl -fsSL "$PANEL_URL/get_template_dc?template_name=lgd.py.jinja" -o lgd.py
-curl -fsSL "$PANEL_URL/get_template_dc?template_name=run.sh.jinja" -o run.sh
+
+echo "-> Generando run.sh"
+cat > run.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ejecuta el dashboard/agent (Flask) local
+python3 lgd.py
+SH
 chmod +x run.sh || true
 
 # docker-compose.yml:
