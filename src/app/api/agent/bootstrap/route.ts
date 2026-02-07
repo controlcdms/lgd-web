@@ -67,11 +67,69 @@ EOF
 echo "-> Descargando lgd.py"
 curl -fsSL "$PANEL_URL/get_template_dc?template_name=lgd.py.jinja" -o lgd.py
 
-echo "-> Descargando requirements.txt"
-curl -fsSL "$PANEL_URL/get_template_dc?template_name=requirements.txt" -o requirements.txt
+echo "-> Generando requirements.txt"
+cat > requirements.txt <<'REQ'
+flask
+python-dotenv
+docker
+requests
+REQ
 
-echo "-> Descargando init.sh"
-curl -fsSL "$PANEL_URL/get_template_dc?template_name=init.sh" -o init.sh
+echo "-> Generando init.sh"
+cat > init.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ruta del script (por si se ejecuta desde otro lado)
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+
+# Detectar python
+PYTHON_BIN="\${PYTHON_BIN:-python3}"
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "❌ No se encontró Python."
+  echo ""
+  echo "👉 Instálalo con alguno de los siguientes comandos según tu sistema:"
+  echo "   - Debian/Ubuntu: sudo apt update && sudo apt install -y python3"
+  echo "   - Fedora:        sudo dnf install -y python3"
+  echo "   - CentOS/RHEL:   sudo yum install -y python3"
+  echo "   - Arch Linux:    sudo pacman -S --noconfirm python"
+  exit 1
+fi
+
+# Verificar si el módulo venv está disponible
+if ! "$PYTHON_BIN" -m venv --help >/dev/null 2>&1; then
+  echo "⚠️  El módulo 'venv' no está instalado. Intentando instalar..."
+  if command -v apt >/dev/null 2>&1; then
+    sudo apt update && sudo apt install -y python3-venv
+  else
+    echo "❌ No se pudo instalar automáticamente. Instálalo manualmente."
+    exit 1
+  fi
+fi
+
+# Crear venv
+if [ ! -d "$SCRIPT_DIR/env" ]; then
+  "$PYTHON_BIN" -m venv "$SCRIPT_DIR/env"
+fi
+
+# Comprobar que activate existe
+if [ ! -f "$SCRIPT_DIR/env/bin/activate" ]; then
+  echo "❌ El entorno virtual está incompleto. Eliminando y recreando..."
+  rm -rf "$SCRIPT_DIR/env"
+  "$PYTHON_BIN" -m venv "$SCRIPT_DIR/env"
+fi
+
+# Activar venv
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/env/bin/activate"
+
+# Actualizar pip e instalar deps
+pip install --upgrade pip
+pip install -r "$SCRIPT_DIR/requirements.txt"
+
+echo "✅ Entorno preparado. Ejecuta: $SCRIPT_DIR/run.sh"
+SH
 chmod +x init.sh || true
 
 echo "-> Generando run.sh"
@@ -86,14 +144,6 @@ source env/bin/activate
 python lgd.py
 SH
 chmod +x run.sh || true
-
-# docker-compose.yml:
-# Si en el futuro el panel expone template docker-compose, lo descargamos.
-# Por ahora asumimos que el zip legacy ya trae suficiente para que el usuario ejecute el agent DC.
-if [[ ! -f docker-compose.yml ]]; then
-  echo "WARN: docker-compose.yml no existe."
-  echo "      Si ya tienes un starter pack, copia dc/docker-compose.yml aquí como docker-compose.yml" >&2
-fi
 
 echo
 echo "Listo. Próximos pasos:"
