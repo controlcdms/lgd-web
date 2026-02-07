@@ -97,9 +97,8 @@ fi
 
 echo
 echo "Listo. Próximos pasos:"
-echo "  1) Asegúrate de tener docker + docker compose instalados"
-echo "  2) Coloca docker-compose.yml en esta carpeta (si aún no existe)"
-echo "  3) Ejecuta: docker compose up -d"
+echo "  1) Ejecuta: bash init.sh"
+echo "  2) (Luego) Ejecuta: bash run.sh"
 `;
 
   return new NextResponse(script, {
