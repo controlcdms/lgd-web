@@ -21,7 +21,36 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
     }
 
-    // tu user en Odoo
+    // Primero leemos la imagen por ID (sin filtrar por usuario) para saber si es pública.
+    const baseRows = await odooSearchRead(
+      "doodba.template",
+      [["id", "=", imageId]],
+      [
+        "id",
+        "name",
+        "branch_version",
+        "image_type_scope",
+        "state",
+        "description",
+        "resume",
+        "user_id",
+      ],
+      1
+    );
+
+    if (!baseRows.length) {
+      return NextResponse.json({ ok: false, error: "Imagen no encontrada" }, { status: 404 });
+    }
+
+    const img = baseRows[0];
+    const scope = String(img?.image_type_scope || "");
+
+    // Si es pública, cualquier usuario autenticado la puede ver.
+    if (scope === "public_image") {
+      return NextResponse.json({ ok: true, image: img });
+    }
+
+    // Si NO es pública, restringimos por usuario dueño.
     const users = await odooSearchRead(
       "res.users",
       [["oauth_uid", "=", String(githubId)]],
@@ -33,30 +62,12 @@ export async function GET(
     }
     const odooUserId = users[0].id;
 
-    // leer template (AJUSTA modelo/campos si tu modelo se llama distinto)
-    const rows = await odooSearchRead(
-      "doodba.template",
-      [
-        ["id", "=", imageId],
-        ["user_id", "=", odooUserId], // evita que vean templates ajenos
-      ],
-      [
-        "id",
-        "name",
-        "branch_version",
-        "image_type_scope",
-        "state",
-        "description",
-        "resume",
-      ],
-      1
-    );
-
-    if (!rows.length) {
+    const ownerId = Array.isArray(img?.user_id) ? img.user_id[0] : img?.user_id;
+    if (Number(ownerId) !== Number(odooUserId)) {
       return NextResponse.json({ ok: false, error: "Imagen no encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, image: rows[0] });
+    return NextResponse.json({ ok: true, image: img });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Error cargando imagen" },

@@ -11,9 +11,23 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
     }
 
-    // si quieres filtrar por usuario actual en Odoo, acá deberías mapearlo a res.users
-    // por ahora: traemos todo (o mete dominio por user_id si tu modelo lo tiene)
-    const domain: any[] = []; // ej: [["user_id", "=", odooUserId]]
+    // Public images should be visible to everyone.
+    // Private images should be visible only to the owning Odoo user.
+    let odooUserId: number | null = null;
+
+    try {
+      const users = await odooCall<any[]>("res.users", "search_read", [
+        [["oauth_uid", "=", String(githubId)]],
+        ["id"],
+      ], { limit: 1 });
+      odooUserId = users?.[0]?.id ?? null;
+    } catch {
+      odooUserId = null;
+    }
+
+    const domain: any[] = odooUserId
+      ? ["|", ["image_type_scope", "=", "public_image"], ["user_id", "=", odooUserId]]
+      : [["image_type_scope", "=", "public_image"]];
 
     const images = await odooCall<any[]>(
       "doodba.template",
