@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -18,12 +18,54 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [commitsErr, setCommitsErr] = useState<string | null>(null);
+  const [commits, setCommits] = useState<any[]>([]);
+
   const nameHint = useMemo(() => {
     const n = name.trim();
     if (!n) return "Solo minúsculas, números y guiones. Empieza con letra.";
     if (!/^[a-z][a-z0-9-]*$/.test(n)) return "Nombre inválido.";
     return "OK";
   }, [name]);
+
+  async function loadCommits(version: string) {
+    setCommitsLoading(true);
+    setCommitsErr(null);
+    try {
+      const r = await fetch(`/api/odoo/commits?version=${encodeURIComponent(version)}&limit=80`, {
+        cache: "no-store",
+      });
+      const txt = await r.text();
+      let j: any;
+      try {
+        j = JSON.parse(txt);
+      } catch {
+        throw new Error(txt.slice(0, 200));
+      }
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar commits");
+      setCommits(Array.isArray(j.commits) ? j.commits : []);
+    } catch (e: any) {
+      setCommits([]);
+      setCommitsErr(e?.message || "Error cargando commits");
+    } finally {
+      setCommitsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    if (!customCommit) return;
+    loadCommits(branchVersion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, customCommit]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!customCommit) return;
+    loadCommits(branchVersion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchVersion]);
 
   async function submit() {
     setErr(null);
@@ -150,10 +192,33 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
               <input
                 value={commit}
                 onChange={(e) => setCommit(e.target.value)}
-                placeholder="sha o tag"
+                placeholder={customCommit ? "sha, tag o selecciona de la lista" : "sha o tag"}
+                list={customCommit ? "lgd-commit-options" : undefined}
                 className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
                 disabled={creating || !customCommit}
               />
+              {customCommit && (
+                <>
+                  <datalist id="lgd-commit-options">
+                    {commits.map((c) => (
+                      <option
+                        key={c.id}
+                        value={c.commit_hash || ""}
+                        label={`${c.commit_hash_short || ""} — ${c.commit_title || ""}`}
+                      />
+                    ))}
+                  </datalist>
+                  <div className="text-xs text-white/50">
+                    {commitsLoading
+                      ? "Cargando commits..."
+                      : commitsErr
+                        ? `No se pudieron cargar commits: ${commitsErr}`
+                        : commits.length
+                          ? `Sugerencias: ${commits.length} commits (version ${branchVersion})`
+                          : `Sin commits guardados para ${branchVersion}`}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
