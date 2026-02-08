@@ -69,6 +69,8 @@ export default function ImageDetailsClient({
   const [releasesErr, setReleasesErr] = useState<string | null>(null);
 
   const [commitHash, setCommitHash] = useState("");
+  const [commitOriginal, setCommitOriginal] = useState("");
+  const [commitEditing, setCommitEditing] = useState(false);
   const [commitsLoading, setCommitsLoading] = useState(false);
   const [commitsErr, setCommitsErr] = useState<string | null>(null);
   const [commits, setCommits] = useState<any[]>([]);
@@ -109,6 +111,7 @@ export default function ImageDetailsClient({
       const j = JSON.parse(txt);
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo guardar commit");
       await load();
+      setCommitEditing(false);
     } catch (e: any) {
       setCommitSaveErr(e?.message || "Error guardando commit");
     } finally {
@@ -130,6 +133,9 @@ export default function ImageDetailsClient({
 
       const ch = String(image?.commit_hash || "").trim();
       setCommitHash(ch);
+      setCommitOriginal(ch);
+      // If commit is already set, keep it locked until user clicks Edit.
+      setCommitEditing(!ch);
       const version = String(image?.branch_version || "").trim();
       if (version) loadCommits(version);
     } catch (e: any) {
@@ -337,14 +343,40 @@ export default function ImageDetailsClient({
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm text-white/60">Commit (Odoo base)</div>
-              <button
-                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-                onClick={saveCommit}
-                disabled={commitSaving || !img || img.image_type_scope === "public_image"}
-                title={img?.image_type_scope === "public_image" ? "No editable en públicas" : "Guardar commit"}
-              >
-                {commitSaving ? "Guardando..." : "Guardar"}
-              </button>
+
+              {commitEditing ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                    onClick={() => {
+                      setCommitHash(commitOriginal);
+                      setCommitEditing(false);
+                      setCommitSaveErr(null);
+                    }}
+                    disabled={commitSaving}
+                    title="Cancelar edición"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                    onClick={saveCommit}
+                    disabled={commitSaving || !img || img.image_type_scope === "public_image" || !commitHash.trim()}
+                    title={img?.image_type_scope === "public_image" ? "No editable en públicas" : "Guardar commit"}
+                  >
+                    {commitSaving ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                  onClick={() => setCommitEditing(true)}
+                  disabled={!img || img.image_type_scope === "public_image"}
+                  title={img?.image_type_scope === "public_image" ? "No editable en públicas" : "Editar commit"}
+                >
+                  Editar
+                </button>
+              )}
             </div>
 
             {commitSaveErr && <div className="mt-2 text-sm text-red-300">{commitSaveErr}</div>}
@@ -353,10 +385,15 @@ export default function ImageDetailsClient({
               <input
                 value={commitHash}
                 onChange={(e) => setCommitHash(e.target.value)}
-                placeholder="sha"
+                placeholder={commitEditing ? "sha" : "(bloqueado)"}
                 list="lgd-commit-options-detail"
                 className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
-                disabled={commitSaving || !img || img.image_type_scope === "public_image"}
+                disabled={
+                  commitSaving ||
+                  !img ||
+                  img.image_type_scope === "public_image" ||
+                  !commitEditing
+                }
               />
 
               <datalist id="lgd-commit-options-detail">
