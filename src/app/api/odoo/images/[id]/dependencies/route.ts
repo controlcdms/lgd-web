@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { odooCall } from "@/lib/odoo";
 
-function idFromParam(params: any) {
-  const raw = params?.id;
+function idFromParam(raw: any) {
   const n = Number(raw);
-  if (!n || Number.isNaN(n)) throw new Error("ID inválido");
+  if (!Number.isFinite(n) || n <= 0) throw new Error("ID inválido");
   return n;
 }
 
-export async function GET(_req: Request, { params }: any) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const templateId = idFromParam(params);
+    const { id } = await ctx.params;
+    const templateId = idFromParam(id);
 
     // 1) leo los many2many ids
     const rows = await odooCall<any[]>("doodba.template", "read", [
@@ -40,9 +40,10 @@ export async function GET(_req: Request, { params }: any) {
   }
 }
 
-export async function POST(req: Request, { params }: any) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const templateId = idFromParam(params);
+    const { id } = await ctx.params;
+    const templateId = idFromParam(id);
     const body = await req.json();
 
     const pipNames: string[] = Array.isArray(body?.pip) ? body.pip : [];
