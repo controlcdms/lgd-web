@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import { odooSearchRead } from "@/lib/odoo";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const githubLogin = (session as any)?.user?.githubLogin ?? null;
@@ -34,12 +35,59 @@ export async function GET() {
       );
     }
 
-    const odooUserId = users?.[0]?.id ?? null;
+    let odooUserId = users?.[0]?.id ?? null;
+
+    // Si el usuario no existe aún en Odoo, intentamos autocrearlo (best-effort)
+    // usando los datos del JWT (accessToken, githubId).
     if (!odooUserId) {
-      return NextResponse.json(
-        { ok: false, error: "Usuario Odoo no encontrado", githubLogin },
-        { status: 404 }
-      );
+      const jwt = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
+      const access_token = (jwt as any)?.accessToken ?? null;
+      const github_id = (jwt as any)?.githubId ?? null;
+
+      if (access_token && githubLogin) {
+        const base = (process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
+        if (base) {
+          const r = await fetch(`${base}/api/odoo/me/upsert-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              access_token,
+              github_login: githubLogin,
+              github_id,
+            }),
+            cache: "no-store",
+          }).catch(() => null);
+
+          const d = await r?.json().catch(() => ({}));
+          if (!r || !r.ok || d?.ok === false) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "Usuario Odoo no encontrado (y no se pudo autocrear)",
+                githubLogin,
+                detail: d?.error || (r ? `HTTP ${r.status}` : "no response"),
+              },
+              { status: 404 }
+            );
+          }
+
+          // retry search
+          users = await odooSearchRead(
+            "res.users",
+            [["login", "=", String(githubLogin)]],
+            ["id", "login", "git_username", "oauth_uid"],
+            1
+          );
+          odooUserId = users?.[0]?.id ?? null;
+        }
+      }
+
+      if (!odooUserId) {
+        return NextResponse.json(
+          { ok: false, error: "Usuario Odoo no encontrado", githubLogin },
+          { status: 404 }
+        );
+      }
     }
 
     const resources = await odooSearchRead(

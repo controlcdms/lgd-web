@@ -18,23 +18,30 @@ async function getGithubProviderId(): Promise<number> {
   return Number(id);
 }
 
-async function ensureInternalGroup(userId: number) {
-  // Make the user an internal user (base.group_user).
-  // We resolve group id by xmlid to avoid hardcoding.
-  let groupId: number | null = null;
+async function getInternalGroupId(): Promise<number | null> {
   try {
-    groupId = await odooCall<number>("ir.model.data", "xmlid_to_res_id", [
+    return await odooCall<number>("ir.model.data", "xmlid_to_res_id", [
       "base.group_user",
       true,
     ]);
   } catch {
-    groupId = null;
+    return null;
   }
+}
 
+async function getDefaultCompanyId(): Promise<number | null> {
+  try {
+    const rows = await odooSearchRead("res.company", [], ["id"], 1);
+    return rows?.[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureInternalGroup(userId: number) {
+  const groupId = await getInternalGroupId();
   if (!groupId) return;
-
   await odooWrite("res.users", [userId], {
-    // m2m command: replace groups
     groups_id: [[4, groupId]],
   });
 }
@@ -90,7 +97,10 @@ export async function POST(req: Request) {
     if (!userId) {
       // Create user as internal.
       // We set login == github_login (invariant).
-      userId = await odooCreate("res.users", {
+      const groupId = await getInternalGroupId();
+      const companyId = await getDefaultCompanyId();
+
+      const createVals: Record<string, any> = {
         login: github_login,
         name: github_login,
         active: true,
@@ -98,8 +108,19 @@ export async function POST(req: Request) {
         oauth_uid: github_id || false,
         git_username: github_login,
         oauth_access_token: access_token,
-      });
+      };
 
+      if (companyId) {
+        createVals.company_id = companyId;
+        createVals.company_ids = [[6, 0, [companyId]]];
+      }
+      if (groupId) {
+        createVals.groups_id = [[6, 0, [groupId]]];
+      }
+
+      userId = await odooCreate("res.users", createVals);
+
+      // Ensure in case groups/company couldn't be set on create.
       await ensureInternalGroup(userId);
 
       return NextResponse.json({ ok: true, action: "created", userId });
