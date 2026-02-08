@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooCall } from "@/lib/odoo";
 
 export async function GET(
   _req: Request,
@@ -16,54 +16,20 @@ export async function GET(
 
   try {
     const session = await getServerSession(authOptions);
+    const githubLogin = (session as any)?.user?.githubLogin;
     const githubId = (session as any)?.user?.githubId;
-    if (!githubId) {
-      return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
+
+    if (!githubLogin && !githubId) {
+      return NextResponse.json({ ok: false, error: "No auth user" }, { status: 401 });
     }
 
-    // Primero leemos la imagen por ID (sin filtrar por usuario) para saber si es pública.
-    const baseRows = await odooSearchRead(
-      "doodba.template",
-      [["id", "=", imageId]],
-      [
-        "id",
-        "name",
-        "branch_version",
-        "image_type_scope",
-        "state",
-        "description",
-        "resume",
-        "user_id",
-      ],
-      1
-    );
+    const img = await odooCall<any>("doodba.template", "api_get_visible_image", [
+      imageId,
+      String(githubId || ""),
+      String(githubLogin || ""),
+    ]);
 
-    if (!baseRows.length) {
-      return NextResponse.json({ ok: false, error: "Imagen no encontrada" }, { status: 404 });
-    }
-
-    const img = baseRows[0];
-    const scope = String(img?.image_type_scope || "");
-
-    // Si es pública, cualquier usuario autenticado la puede ver.
-    if (scope === "public_image") {
-      return NextResponse.json({ ok: true, image: img });
-    }
-
-    // Si NO es pública, restringimos por usuario dueño.
-    const users = await odooSearchRead(
-      "res.users",
-      [["oauth_uid", "=", String(githubId)]],
-      ["id"],
-      1
-    );
-    if (!users.length) {
-      return NextResponse.json({ ok: false, error: "Usuario Odoo no encontrado" }, { status: 404 });
-    }
-    const odooUserId = users[0].id;
-
-    const ownerId = Array.isArray(img?.user_id) ? img.user_id[0] : img?.user_id;
-    if (Number(ownerId) !== Number(odooUserId)) {
+    if (!img) {
       return NextResponse.json({ ok: false, error: "Imagen no encontrada" }, { status: 404 });
     }
 
