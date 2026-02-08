@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth/react";
+// signOut removed
 
 const items = [
   { href: "/dashboard", label: "Proyectos", icon: "📁" },
@@ -99,20 +99,6 @@ export default function Sidebar() {
           <span className="text-[10px] text-blue-100/60">curl|bash</span>
         </button>
 
-        <a
-          href={token ? `/api/agent/bootstrap?token=${token}` : "/api/agent/bootstrap"}
-          target="_blank"
-          rel="noreferrer"
-          className="group flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 px-3 py-2 text-xs font-mono transition-colors"
-          title="Descargar bootstrap del agente (script)"
-        >
-          <span className="flex items-center gap-2">
-            <span className="text-sm">📄</span>
-            DOWNLOAD_AGENT
-          </span>
-          <span className="text-[10px] text-white/40">.sh</span>
-        </a>
-
         <button
           type="button"
           onClick={async () => {
@@ -140,29 +126,6 @@ export default function Sidebar() {
             {tokenErr}
           </div>
         ) : null}
-
-        <div className="rounded-xl bg-white/5 p-3 flex items-center gap-3 border border-white/5">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
-            OP
-          </div>
-          <div className="overflow-hidden">
-            <div className="text-xs font-medium text-white truncate">Operator</div>
-            <div className="text-[10px] text-white/40 truncate">System Admin</div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="group w-full flex items-center justify-between rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-100 border border-rose-500/20 px-3 py-2 text-xs font-mono transition-colors"
-          title="Cerrar sesión"
-        >
-          <span className="flex items-center gap-2">
-            <span className="text-sm">↩</span>
-            SIGN_OUT
-          </span>
-          <span className="text-[10px] text-rose-100/60">logout</span>
-        </button>
       </div>
     </aside>
   );
