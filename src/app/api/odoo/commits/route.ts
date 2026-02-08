@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       ],
       limit,
       0,
-      "commit_date desc"
+      "commit_date desc, id desc"
     );
 
     return NextResponse.json({ ok: true, commits: commits || [] });

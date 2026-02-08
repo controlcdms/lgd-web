@@ -204,7 +204,7 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
                       <option
                         key={c.id}
                         value={c.commit_hash || ""}
-                        label={`${c.commit_hash_short || ""} — ${c.commit_title || ""}`}
+                        label={`${c.commit_hash_short || ""} — ${c.commit_title || ""} — ${c.commit_date || ""}`}
                       />
                     ))}
                   </datalist>
