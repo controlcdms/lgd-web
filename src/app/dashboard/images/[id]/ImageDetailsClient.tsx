@@ -303,9 +303,7 @@ export default function ImageDetailsClient({
                           : `Release creado (v${releases[0]?.sequence_number ?? "?"})`
                       : "Borrador"}
                 </div>
-                <div className="mt-1 text-xs text-white/50">
-                  Interno: {img?.state || "-"}
-                </div>
+                {/* estado interno oculto */}
               </div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Versión</div>
