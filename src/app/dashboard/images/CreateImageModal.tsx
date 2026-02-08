@@ -13,8 +13,8 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
   const [branchVersion, setBranchVersion] = useState<"16.0" | "17.0" | "18.0">("17.0");
   const [scope, setScope] = useState<"private_image" | "public_image">("private_image");
   const [description, setDescription] = useState("");
-  const [customCommit, setCustomCommit] = useState(false);
   const [commit, setCommit] = useState("");
+  const [commitTouched, setCommitTouched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -53,19 +53,20 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
     }
   }
 
+  // Load commit suggestions whenever the modal is open and the version changes.
   useEffect(() => {
     if (!open) return;
-    if (!customCommit) return;
     loadCommits(branchVersion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customCommit]);
+  }, [open, branchVersion]);
 
+  // Auto-pick latest commit hash unless user manually edited the field.
   useEffect(() => {
     if (!open) return;
-    if (!customCommit) return;
-    loadCommits(branchVersion);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchVersion]);
+    if (commitTouched) return;
+    const latest = (commits?.[0]?.commit_hash || "").trim();
+    if (latest) setCommit(latest);
+  }, [open, commits, commitTouched]);
 
   async function submit() {
     setErr(null);
@@ -73,8 +74,8 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
     if (!n) return setErr("Ponle nombre.");
     if (!/^[a-z][a-z0-9-]*$/.test(n)) return setErr("Nombre inválido.");
 
-    if (customCommit && !commit.trim()) {
-      return setErr("El commit es obligatorio cuando habilitas commit personalizado.");
+    if (!commit.trim()) {
+      return setErr("El commit es obligatorio.");
     }
 
     setCreating(true);
@@ -87,7 +88,7 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
           branch_version: branchVersion,
           image_type_scope: scope,
           description: description.trim(),
-          commit: customCommit ? commit.trim() : "",
+          commit: commit.trim(),
         }),
       });
 
@@ -105,7 +106,7 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
       setBranchVersion("17.0");
       setScope("private_image");
       setDescription("");
-      setCustomCommit(false);
+      setCommitTouched(false);
       setCommit("");
 
       onClose();
@@ -137,17 +138,11 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
         )}
 
         <div className="mt-4 grid gap-4">
-          <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={customCommit}
-              onChange={(e) => setCustomCommit(e.target.checked)}
-              disabled={creating}
-            />
-            <div>
-              <div className="text-sm text-white">Habilitar commit personalizado</div>
-              <div className="text-xs text-white/60">Activa para setear un commit hash/manual.</div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-sm text-white">Commit por defecto</div>
+            <div className="text-xs text-white/60">
+              Se selecciona automáticamente el último commit disponible para la versión de Odoo. Si quieres,
+              puedes cambiarlo manualmente.
             </div>
           </div>
 
@@ -192,39 +187,36 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
             </div>
 
             <div className="grid gap-1 md:col-span-2">
-              <label className="text-sm text-white/80">
-                Commit {customCommit ? "(obligatorio)" : "(deshabilitado)"}
-              </label>
+              <label className="text-sm text-white/80">Commit (obligatorio)</label>
               <input
                 value={commit}
-                onChange={(e) => setCommit(e.target.value)}
-                placeholder={customCommit ? "sha, tag o selecciona de la lista" : "Habilita commit personalizado"}
-                list={customCommit ? "lgd-commit-options" : undefined}
-                className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
-                disabled={creating || !customCommit}
+                onChange={(e) => {
+                  setCommitTouched(true);
+                  setCommit(e.target.value);
+                }}
+                placeholder={commitsLoading ? "Cargando commits..." : "sha o selecciona de la lista"}
+                list="lgd-commit-options"
+                className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                disabled={creating}
               />
-              {customCommit && (
-                <>
-                  <datalist id="lgd-commit-options">
-                    {commits.map((c) => (
-                      <option
-                        key={c.id}
-                        value={c.commit_hash || ""}
-                        label={`${c.commit_hash_short || ""} — ${c.commit_title || ""} — ${c.commit_date || ""}`}
-                      />
-                    ))}
-                  </datalist>
-                  <div className="text-xs text-white/50 mt-1">
-                    {commitsLoading
-                      ? "Cargando commits..."
-                      : commitsErr
-                        ? `No se pudieron cargar commits: ${commitsErr}`
-                        : commits.length
-                          ? `Sugerencias: ${commits.length} commits (version ${branchVersion})`
-                          : `Sin commits guardados para ${branchVersion}`}
-                  </div>
-                </>
-              )}
+              <datalist id="lgd-commit-options">
+                {commits.map((c) => (
+                  <option
+                    key={c.id}
+                    value={c.commit_hash || ""}
+                    label={`${c.commit_hash_short || ""} — ${c.commit_title || ""} — ${c.commit_date || ""}`}
+                  />
+                ))}
+              </datalist>
+              <div className="text-xs text-white/50 mt-1">
+                {commitsLoading
+                  ? "Cargando commits..."
+                  : commitsErr
+                    ? `No se pudieron cargar commits: ${commitsErr}`
+                    : commits.length
+                      ? `Sugerencias: ${commits.length} commits (version ${branchVersion})`
+                      : `Sin commits guardados para ${branchVersion}`}
+              </div>
             </div>
           </div>
 
