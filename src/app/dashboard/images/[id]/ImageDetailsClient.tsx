@@ -124,38 +124,70 @@ export default function ImageDetailsClient({
     router.push(next ? `${base}?tab=${next}` : base);
   };
 
+  const badgeScope = (t?: string) => {
+    if (t === "public_image") return "Pública";
+    if (t === "private_image") return "Privada";
+    return "-";
+  };
+
+  const scopeClass = (t?: string) => {
+    if (t === "public_image") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
+    if (t === "private_image") return "border-amber-500/30 bg-amber-500/10 text-amber-200";
+    return "border-white/15 bg-white/5 text-white/70";
+  };
+
+  const stateClass = (s?: string) => {
+    if (!s) return "border-white/15 bg-white/5 text-white/70";
+    const ss = String(s);
+    if (/(done|success|ok|published)/i.test(ss)) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
+    if (/(error|fail)/i.test(ss)) return "border-rose-500/30 bg-rose-500/10 text-rose-200";
+    if (/(building|running|progress)/i.test(ss)) return "border-blue-500/30 bg-blue-500/10 text-blue-200";
+    return "border-white/15 bg-white/5 text-white/70";
+  };
+
   return (
     <div className="text-white">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-white/60 text-sm">Imagen</div>
-          <h1 className="text-2xl font-semibold">{img?.name || `#${imageId}`}</h1>
-          <div className="text-white/50 text-sm mt-1">{img?.repo_full_name || "-"}</div>
-        </div>
+      {/* Header */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-white/60 text-sm">Imagen</div>
+            <h1 className="mt-1 text-2xl font-semibold truncate">
+              {img?.name || `#${imageId}`}
+            </h1>
+            <div className="text-white/50 text-sm mt-1 break-all">
+              {img?.repo_full_name || "-"}
+            </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
-            onClick={() => router.push("/dashboard/images")}
-          >
-            ← Volver
-          </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className={`text-xs rounded-lg border px-2 py-1 ${scopeClass(img?.image_type_scope)}`}>
+                {badgeScope(img?.image_type_scope)}
+              </span>
+              <span className={`text-xs rounded-lg border px-2 py-1 ${stateClass(img?.state)}`}>
+                Estado: {img?.state || "-"}
+              </span>
+              <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-white/70">
+                Versión: {img?.branch_version || "-"}
+              </span>
+            </div>
+          </div>
 
-          <button
-            className="rounded-xl bg-blue-600 px-3 py-2 text-sm hover:bg-blue-500 disabled:opacity-60"
-            disabled={!img}
-            onClick={() => setShowPublish(true)}
-          >
-            Publicar
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+              onClick={() => router.push("/dashboard/images")}
+            >
+              ← Volver
+            </button>
 
-          <button
-            className="rounded-xl bg-red-600 px-3 py-2 text-sm hover:bg-red-500 disabled:opacity-60"
-            disabled={!img}
-            onClick={() => alert("Eliminar: luego conectamos endpoint")}
-          >
-            Eliminar
-          </button>
+            <button
+              className="rounded-xl bg-blue-600 px-3 py-2 text-sm hover:bg-blue-500 disabled:opacity-60"
+              disabled={!img}
+              onClick={() => setShowPublish(true)}
+            >
+              Publicar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -177,147 +209,191 @@ export default function ImageDetailsClient({
         </div>
       )}
 
-      {/* ✅ ahora todo integrado a la izquierda (sin panel RIGHT) */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div className="text-sm text-white/60">Detalles</div>
+        {/* Columna 1-2: contenido */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-sm text-white/60">Resumen</div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1">
-              Versión: {img?.branch_version || "-"}
-            </span>
-            <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1">
-              Estado: {img?.state || "-"}
-            </span>
-            <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1">
-              Tipo: {badgeType(img?.image_type_scope)}
-            </span>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Tipo</div>
+                <div className="mt-1 text-sm text-white/80">{badgeScope(img?.image_type_scope)}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Estado</div>
+                <div className="mt-1 text-sm text-white/80">{img?.state || "-"}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Versión</div>
+                <div className="mt-1 text-sm text-white/80">{img?.branch_version || "-"}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">ID</div>
+                <div className="mt-1 text-sm text-white/80">#{img?.id ?? imageId}</div>
+              </div>
+            </div>
           </div>
 
           {img?.description && (
-            <div className="mt-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="text-sm text-white/60">Descripción</div>
-              <div className="mt-1 text-sm text-white/80 whitespace-pre-wrap">{img.description}</div>
+              <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap">{img.description}</div>
             </div>
           )}
 
-          {/* PIP */}
-          <div className="mt-5">
+          {img?.resume && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm text-white/60">Resumen de publicación</div>
+              <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap">{img.resume}</div>
+            </div>
+          )}
+
+          {/* TABS (Dependencias / Historial) */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className={`rounded-xl border px-3 py-2 text-sm ${
+                  !isDeps && !isHistory
+                    ? "border-blue-500 bg-blue-500/20 text-blue-200"
+                    : "border-white/15 bg-white/5 hover:bg-white/10"
+                }`}
+                onClick={() => setTab("")}
+              >
+                Overview
+              </button>
+
+              <button
+                className={`rounded-xl border px-3 py-2 text-sm ${
+                  isDeps
+                    ? "border-blue-500 bg-blue-500/20 text-blue-200"
+                    : "border-white/15 bg-white/5 hover:bg-white/10"
+                }`}
+                onClick={() => setTab(isDeps ? "" : "deps")}
+              >
+                Dependencias
+              </button>
+
+              <button
+                className={`rounded-xl border px-3 py-2 text-sm ${
+                  isHistory
+                    ? "border-blue-500 bg-blue-500/20 text-blue-200"
+                    : "border-white/15 bg-white/5 hover:bg-white/10"
+                }`}
+                onClick={() => setTab(isHistory ? "" : "history")}
+              >
+                Historial de publicaciones
+              </button>
+            </div>
+
+            {/* PANEL: DEPENDENCIAS */}
+            {isDeps && (
+              <div className="mt-4">
+                <ImageDependenciesPanel
+                  templateId={imageId}
+                  onSaved={() => {
+                    load();
+                    loadReleases();
+                  }}
+                />
+              </div>
+            )}
+
+            {/* PANEL: HISTORIAL */}
+            {isHistory && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-sm text-white/60 mb-2">Historial</div>
+                <div className="text-sm text-white/70">(pendiente) aquí mostramos releases/publicaciones.</div>
+              </div>
+            )}
+
+            {/* RELEASES SOLO EN OVERVIEW */}
+            {!isDeps && !isHistory && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-white/60">Releases</div>
+
+                  <button
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                    onClick={loadReleases}
+                    disabled={releasesLoading}
+                  >
+                    {releasesLoading ? "Actualizando..." : "Actualizar"}
+                  </button>
+                </div>
+
+                {releasesErr && <div className="mt-2 text-sm text-red-300">{releasesErr}</div>}
+
+                {releasesLoading ? (
+                  <div className="mt-2 text-sm text-white/60">Cargando...</div>
+                ) : releases.length === 0 ? (
+                  <div className="mt-2 text-sm text-white/60">-</div>
+                ) : (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
+                      NOMBRE • REF • FECHA
+                    </div>
+                    <div className="divide-y divide-white/10">
+                      {releases.map((r) => (
+                        <div key={r.id} className="px-4 py-3 hover:bg-white/5">
+                          <div className="font-medium">{r.name || `#${r.id}`}</div>
+                          <div className="mt-1 text-xs text-white/60 flex flex-wrap gap-3">
+                            <span>ref: {r.ref || "-"}</span>
+                            <span>fecha: {r.create_date || "-"}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Columna 3: deps */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-sm text-white/60">PIP</div>
             {pip.length === 0 ? (
               <div className="text-sm text-white/60 mt-2">-</div>
             ) : (
               <div className="mt-2 flex flex-wrap gap-2">
-                {pip.map((p: any, idx: number) => (
-                  <span
-                    key={idx}
-                    className="text-xs rounded-full border border-white/20 bg-white/5 px-2 py-1 text-white/70"
-                  >
-                    {String(p?.[1] || p?.name || p)}
-                  </span>
-                ))}
+                {pip
+                  .map((p: any) => String(p?.[1] || p?.name || p))
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((label, idx) => (
+                    <span
+                      key={idx}
+                      className="text-xs rounded-full border border-white/20 bg-black/20 px-2 py-1 text-white/70"
+                    >
+                      {label}
+                    </span>
+                  ))}
               </div>
             )}
           </div>
 
-          {/* TABS (Dependencias / Historial) */}
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <button
-              className={`rounded-xl border px-3 py-2 text-sm ${
-                !isDeps && !isHistory
-                  ? "border-blue-500 bg-blue-500/20 text-blue-200"
-                  : "border-white/15 bg-white/5 hover:bg-white/10"
-              }`}
-              onClick={() => setTab("")}
-            >
-              Overview
-            </button>
-
-            <button
-              className={`rounded-xl border px-3 py-2 text-sm ${
-                isDeps
-                  ? "border-blue-500 bg-blue-500/20 text-blue-200"
-                  : "border-white/15 bg-white/5 hover:bg-white/10"
-              }`}
-              onClick={() => setTab(isDeps ? "" : "deps")}
-            >
-              Dependencias
-            </button>
-
-            <button
-              className={`rounded-xl border px-3 py-2 text-sm ${
-                isHistory
-                  ? "border-blue-500 bg-blue-500/20 text-blue-200"
-                  : "border-white/15 bg-white/5 hover:bg-white/10"
-              }`}
-              onClick={() => setTab(isHistory ? "" : "history")}
-            >
-              Historial de publicaciones
-            </button>
-          </div>
-
-          {/* PANEL: DEPENDENCIAS */}
-          {isDeps && (
-            <div className="mt-4">
-              <ImageDependenciesPanel
-                templateId={imageId}
-                onSaved={() => {
-                  load();
-                  loadReleases();
-                }}
-              />
-            </div>
-          )}
-
-          {/* PANEL: HISTORIAL */}
-          {isHistory && (
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="text-sm text-white/60 mb-2">Historial</div>
-              <div className="text-sm text-white/70">(tab=history) acá luego metemos el historial real.</div>
-            </div>
-          )}
-
-          {/* RELEASES SOLO EN OVERVIEW */}
-          {!isDeps && !isHistory && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-white/60">Releases</div>
-
-                <button
-                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-                  onClick={loadReleases}
-                  disabled={releasesLoading}
-                >
-                  {releasesLoading ? "Actualizando..." : "Actualizar"}
-                </button>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-sm text-white/60">APT</div>
+            {apt.length === 0 ? (
+              <div className="text-sm text-white/60 mt-2">-</div>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {apt
+                  .map((p: any) => String(p?.[1] || p?.name || p))
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((label, idx) => (
+                    <span
+                      key={idx}
+                      className="text-xs rounded-full border border-white/20 bg-black/20 px-2 py-1 text-white/70"
+                    >
+                      {label}
+                    </span>
+                  ))}
               </div>
-
-              {releasesErr && <div className="mt-2 text-sm text-red-300">{releasesErr}</div>}
-
-              {releasesLoading ? (
-                <div className="mt-2 text-sm text-white/60">Cargando...</div>
-              ) : releases.length === 0 ? (
-                <div className="mt-2 text-sm text-white/60">-</div>
-              ) : (
-                <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                  <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
-                    NOMBRE • REF • FECHA
-                  </div>
-                  <div className="divide-y divide-white/10">
-                    {releases.map((r) => (
-                      <div key={r.id} className="px-4 py-3 hover:bg-white/5">
-                        <div className="font-medium">{r.name || `#${r.id}`}</div>
-                        <div className="mt-1 text-xs text-white/60 flex flex-wrap gap-3">
-                          <span>ref: {r.ref || "-"}</span>
-                          <span>fecha: {r.create_date || "-"}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
