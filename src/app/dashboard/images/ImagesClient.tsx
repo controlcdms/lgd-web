@@ -8,9 +8,15 @@ import CreateTagModal from "./CreateTagModal";
 type ImageRow = {
   id: number;
   name?: string;
-  branch_version?: string;      // “18.0”
-  image_type_scope?: string;    // private_image / public_image
-  state?: string;              // release/building/etc
+  branch_version?: string; // “18.0”
+  image_type_scope?: string; // private_image / public_image
+  state?: string; // template wizard/internal state
+  releases_count?: number;
+  last_release_state?: string;
+  last_release_name?: string;
+  last_release_ref?: string;
+  last_release_date?: string;
+  last_release_sequence_number?: number;
   repo_full_name?: string;
   pip_packages?: any[];
   resume?: string;
@@ -73,6 +79,18 @@ export default function ImagesClient() {
     if (t === "public_image") return "Pública";
     if (t === "private_image") return "Privada";
     return "-";
+  };
+
+  const statusLabel = (img: ImageRow) => {
+    // Prefer showing release reality to the user.
+    if (img.state === "building") return "Construyendo";
+
+    const rc = Number(img.releases_count || 0);
+    if (rc <= 0) return "Borrador";
+
+    if (img.last_release_state === "publish") return `Publicado (v${img.last_release_sequence_number || "?"})`;
+    if (img.last_release_state === "unpublish") return `No publicado (v${img.last_release_sequence_number || "?"})`;
+    return `Release creado (v${img.last_release_sequence_number || "?"})`;
   };
 
   function goDetail(id: number) {
@@ -182,7 +200,7 @@ export default function ImagesClient() {
                     </span>
 
                     <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1">
-                      {img.state || "release"}
+                      {statusLabel(img)}
                     </span>
 
                     <span className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1">

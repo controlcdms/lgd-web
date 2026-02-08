@@ -16,7 +16,7 @@ export async function GET(
     const releases = await odooSearchRead(
       "doodba.tag",
       [["doodba_template", "=", templateId]],
-      ["id", "name", "ref", "create_date"],
+      ["id", "name", "ref", "create_date", "state", "sequence_number"],
       200,
       0,
       "create_date desc"

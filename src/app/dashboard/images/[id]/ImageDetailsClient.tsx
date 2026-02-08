@@ -26,6 +26,8 @@ type ReleaseRow = {
   name?: string;
   ref?: string;
   create_date?: string;
+  state?: string;
+  sequence_number?: number;
 };
 
 function safeParseJson(txt: string) {
@@ -290,7 +292,20 @@ export default function ImageDetailsClient({
               </div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Estado</div>
-                <div className="mt-1 text-sm text-white/80">{img?.state || "-"}</div>
+                <div className="mt-1 text-sm text-white/80">
+                  {img?.state === "building"
+                    ? "Construyendo"
+                    : releases.length
+                      ? releases[0]?.state === "publish"
+                        ? `Publicado (v${releases[0]?.sequence_number ?? "?"})`
+                        : releases[0]?.state === "unpublish"
+                          ? `No publicado (v${releases[0]?.sequence_number ?? "?"})`
+                          : `Release creado (v${releases[0]?.sequence_number ?? "?"})`
+                      : "Borrador"}
+                </div>
+                <div className="mt-1 text-xs text-white/50">
+                  Interno: {img?.state || "-"}
+                </div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                 <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Versión</div>
