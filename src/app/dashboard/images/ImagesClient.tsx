@@ -84,6 +84,7 @@ export default function ImagesClient() {
   const statusLabel = (img: ImageRow) => {
     // Prefer showing release reality to the user.
     if (img.state === "building") return "Construyendo";
+    if (img.state === "error") return "Error";
 
     const rc = Number(img.releases_count || 0);
     if (rc <= 0) return "Borrador";
