@@ -22,6 +22,8 @@ type ImageDetail = {
   commit_hash?: string;
   last_builder_job_id?: string;
   last_builder_date?: string;
+  pending_changes?: boolean;
+  last_published_date?: string;
 };
 
 type ReleaseRow = {
@@ -332,6 +334,26 @@ export default function ImageDetailsClient({
               </div>
             </div>
           </div>
+
+          {img?.pending_changes ? (
+            <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm text-yellow-200 font-medium">Cambios pendientes de publicación</div>
+                  <div className="mt-1 text-sm text-yellow-100/80">
+                    Lo que acabas de cambiar (dependencias/commit) todavía no está en una imagen publicada.
+                    Publica un nuevo release para que se aplique.
+                  </div>
+                </div>
+                <button
+                  className="rounded-xl bg-yellow-500/20 border border-yellow-400/30 px-3 py-2 text-sm text-yellow-100 hover:bg-yellow-500/30"
+                  onClick={() => setShowPublish(true)}
+                >
+                  Publicar ahora
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {img?.description && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
