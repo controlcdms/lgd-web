@@ -73,6 +73,10 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
     if (!n) return setErr("Ponle nombre.");
     if (!/^[a-z][a-z0-9-]*$/.test(n)) return setErr("Nombre inválido.");
 
+    if (customCommit && !commit.trim()) {
+      return setErr("El commit es obligatorio cuando habilitas commit personalizado.");
+    }
+
     setCreating(true);
     try {
       const r = await fetch("/api/odoo/images/create", {
@@ -159,7 +163,7 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
             <div className="text-xs text-white/50">{nameHint}</div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <div className="grid gap-1">
               <label className="text-sm text-white/80">Tipo</label>
               <select
@@ -187,12 +191,14 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
               </select>
             </div>
 
-            <div className="grid gap-1">
-              <label className="text-sm text-white/80">Commit (opcional)</label>
+            <div className="grid gap-1 md:col-span-2">
+              <label className="text-sm text-white/80">
+                Commit {customCommit ? "(obligatorio)" : "(deshabilitado)"}
+              </label>
               <input
                 value={commit}
                 onChange={(e) => setCommit(e.target.value)}
-                placeholder={customCommit ? "sha, tag o selecciona de la lista" : "sha o tag"}
+                placeholder={customCommit ? "sha, tag o selecciona de la lista" : "Habilita commit personalizado"}
                 list={customCommit ? "lgd-commit-options" : undefined}
                 className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
                 disabled={creating || !customCommit}
@@ -208,7 +214,7 @@ export default function CreateImageModal({ open, onClose, onCreated }: Props) {
                       />
                     ))}
                   </datalist>
-                  <div className="text-xs text-white/50">
+                  <div className="text-xs text-white/50 mt-1">
                     {commitsLoading
                       ? "Cargando commits..."
                       : commitsErr
