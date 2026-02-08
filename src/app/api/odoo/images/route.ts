@@ -13,48 +13,12 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: "No auth user" }, { status: 401 });
     }
 
-    // Public images should be visible to everyone.
-    // Private images should be visible only to the owning Odoo user.
-    let odooUserId: number | null = null;
-
-    // NOTE: In LGD Odoo DB `res.users` may not have github_login.
-    // Prefer matching by `login`/`git_username`, fallback to oauth_uid.
-    try {
-      if (githubLogin) {
-        const users = await odooCall<any[]>(
-          "res.users",
-          "search_read",
-          [
-            ["|", ["login", "=", String(githubLogin)], ["git_username", "=", String(githubLogin)]],
-            ["id"],
-          ],
-          { limit: 1 }
-        );
-        odooUserId = users?.[0]?.id ?? null;
-      }
-
-      if (!odooUserId && githubId) {
-        const users2 = await odooCall<any[]>(
-          "res.users",
-          "search_read",
-          [[["oauth_uid", "=", String(githubId)]], ["id"]],
-          { limit: 1 }
-        );
-        odooUserId = users2?.[0]?.id ?? null;
-      }
-    } catch {
-      odooUserId = null;
-    }
-
-    const domain: any[] = odooUserId
-      ? ["|", ["image_type_scope", "=", "public_image"], ["user_id", "=", odooUserId]]
-      : [["image_type_scope", "=", "public_image"]];
-
+    // List visible images via Odoo helper (sudo inside) because lgd-web-bot may not
+    // have access to read `res.users`.
     const images = await odooCall<any[]>(
       "doodba.template",
-      "search_read",
-      [domain, ["id", "name", "branch_version", "image_type_scope", "state"]],
-      { limit: 200, order: "id desc" }
+      "api_list_visible_images",
+      [String(githubId || ""), String(githubLogin || ""), 200]
     );
 
     return NextResponse.json({ ok: true, images });
