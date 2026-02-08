@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-// signOut removed
+import { signOut } from "next-auth/react";
 
 const items = [
   { href: "/dashboard", label: "Proyectos", icon: "📁" },
@@ -126,6 +126,19 @@ export default function Sidebar() {
             {tokenErr}
           </div>
         ) : null}
+
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className="group w-full flex items-center justify-between rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-100 border border-rose-500/20 px-3 py-2 text-xs font-mono transition-colors"
+          title="Cerrar sesión"
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">↩</span>
+            SIGN_OUT
+          </span>
+          <span className="text-[10px] text-rose-100/60">logout</span>
+        </button>
       </div>
     </aside>
   );
