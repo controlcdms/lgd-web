@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import CreateTagModal from "../CreateTagModal";
 import ImageDependenciesPanel from "./ImageDependenciesPanel";
 import UpdateContainersModal from "./UpdateContainersModal";
+import BuilderLogsModal from "./BuilderLogsModal";
 
 type ImageDetail = {
   id: number;
@@ -19,6 +20,8 @@ type ImageDetail = {
   resume?: string;
   github_commit_id?: any;
   commit_hash?: string;
+  last_builder_job_id?: string;
+  last_builder_date?: string;
 };
 
 type ReleaseRow = {
@@ -71,6 +74,8 @@ export default function ImageDetailsClient({
   const [commits, setCommits] = useState<any[]>([]);
   const [commitSaving, setCommitSaving] = useState(false);
   const [commitSaveErr, setCommitSaveErr] = useState<string | null>(null);
+
+  const [showBuilderLogs, setShowBuilderLogs] = useState(false);
 
   async function loadCommits(version: string) {
     setCommitsLoading(true);
@@ -273,6 +278,12 @@ export default function ImageDetailsClient({
         releaseName={targetRelease?.name}
       />
 
+      <BuilderLogsModal
+        opened={showBuilderLogs}
+        onClose={() => setShowBuilderLogs(false)}
+        jobId={img?.last_builder_job_id || ""}
+      />
+
       {err && (
         <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
           {err}
@@ -370,10 +381,37 @@ export default function ImageDetailsClient({
             </div>
           </div>
 
-          {img?.resume && (
+          {(img?.last_builder_job_id || img?.resume) && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm text-white/60">Resumen de publicación</div>
-              <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap">{img.resume}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm text-white/60">Build</div>
+                {img?.last_builder_job_id ? (
+                  <button
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+                    onClick={() => setShowBuilderLogs(true)}
+                  >
+                    Ver logs
+                  </button>
+                ) : null}
+              </div>
+
+              {img?.last_builder_job_id ? (
+                <div className="mt-2 text-sm text-white/70">
+                  <div>job_id: <span className="font-mono text-white/80">{img.last_builder_job_id}</span></div>
+                  {img?.last_builder_date ? (
+                    <div>fecha: <span className="font-mono text-white/80">{img.last_builder_date}</span></div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-white/60">(sin builds aún)</div>
+              )}
+
+              {img?.resume ? (
+                <div className="mt-4">
+                  <div className="text-sm text-white/60">Resumen de publicación</div>
+                  <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap">{img.resume}</div>
+                </div>
+              ) : null}
             </div>
           )}
 
