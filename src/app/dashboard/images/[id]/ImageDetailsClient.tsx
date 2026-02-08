@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CreateTagModal from "../CreateTagModal";
 import ImageDependenciesPanel from "./ImageDependenciesPanel";
+import UpdateContainersModal from "./UpdateContainersModal";
 
 type ImageDetail = {
   id: number;
@@ -53,6 +54,8 @@ export default function ImageDetailsClient({
   const [img, setImg] = useState<ImageDetail | null>(null);
 
   const [showPublish, setShowPublish] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [targetRelease, setTargetRelease] = useState<ReleaseRow | null>(null);
 
   const [releases, setReleases] = useState<ReleaseRow[]>([]);
   const [releasesLoading, setReleasesLoading] = useState(false);
@@ -203,6 +206,17 @@ export default function ImageDetailsClient({
         }}
       />
 
+      <UpdateContainersModal
+        opened={showUpdate}
+        onClose={() => {
+          setShowUpdate(false);
+          setTargetRelease(null);
+        }}
+        templateId={imageId}
+        releaseId={targetRelease?.id || 0}
+        releaseName={targetRelease?.name}
+      />
+
       {err && (
         <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
           {err}
@@ -301,9 +315,57 @@ export default function ImageDetailsClient({
 
             {/* PANEL: HISTORIAL */}
             {isHistory && (
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-sm text-white/60 mb-2">Historial</div>
-                <div className="text-sm text-white/70">(pendiente) aquí mostramos releases/publicaciones.</div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-white/60">Releases</div>
+
+                  <button
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                    onClick={loadReleases}
+                    disabled={releasesLoading}
+                  >
+                    {releasesLoading ? "Actualizando..." : "Actualizar"}
+                  </button>
+                </div>
+
+                {releasesErr && <div className="mt-2 text-sm text-red-300">{releasesErr}</div>}
+
+                {releasesLoading ? (
+                  <div className="mt-2 text-sm text-white/60">Cargando...</div>
+                ) : releases.length === 0 ? (
+                  <div className="mt-2 text-sm text-white/60">-</div>
+                ) : (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
+                      RELEASE • REF • FECHA • ACCIONES
+                    </div>
+                    <div className="divide-y divide-white/10">
+                      {releases.map((r) => (
+                        <div key={r.id} className="px-4 py-3 hover:bg-white/5 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{r.name || `#${r.id}`}</div>
+                            <div className="mt-1 text-xs text-white/60 flex flex-wrap gap-3">
+                              <span className="break-all">ref: {r.ref || "-"}</span>
+                              <span>fecha: {r.create_date || "-"}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
+                              onClick={() => {
+                                setTargetRelease(r);
+                                setShowUpdate(true);
+                              }}
+                            >
+                              Actualizar contenedores…
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
