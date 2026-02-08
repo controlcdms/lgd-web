@@ -17,6 +17,8 @@ type ImageDetail = {
   apt_packages?: any[]; // ✅ por si existe en tu API
   description?: string;
   resume?: string;
+  github_commit_id?: any;
+  commit_hash?: string;
 };
 
 type ReleaseRow = {
@@ -61,6 +63,52 @@ export default function ImageDetailsClient({
   const [releasesLoading, setReleasesLoading] = useState(false);
   const [releasesErr, setReleasesErr] = useState<string | null>(null);
 
+  const [commitHash, setCommitHash] = useState("");
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [commitsErr, setCommitsErr] = useState<string | null>(null);
+  const [commits, setCommits] = useState<any[]>([]);
+  const [commitSaving, setCommitSaving] = useState(false);
+  const [commitSaveErr, setCommitSaveErr] = useState<string | null>(null);
+
+  async function loadCommits(version: string) {
+    setCommitsLoading(true);
+    setCommitsErr(null);
+    try {
+      const r = await fetch(`/api/odoo/commits?version=${encodeURIComponent(version)}&limit=80`, {
+        cache: "no-store",
+      });
+      const txt = await r.text();
+      const j = JSON.parse(txt);
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar commits");
+      setCommits(Array.isArray(j.commits) ? j.commits : []);
+    } catch (e: any) {
+      setCommits([]);
+      setCommitsErr(e?.message || "Error cargando commits");
+    } finally {
+      setCommitsLoading(false);
+    }
+  }
+
+  async function saveCommit() {
+    setCommitSaving(true);
+    setCommitSaveErr(null);
+    try {
+      const r = await fetch(`/api/odoo/images/${imageId}/commit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commit: commitHash.trim() }),
+      });
+      const txt = await r.text();
+      const j = JSON.parse(txt);
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo guardar commit");
+      await load();
+    } catch (e: any) {
+      setCommitSaveErr(e?.message || "Error guardando commit");
+    } finally {
+      setCommitSaving(false);
+    }
+  }
+
   async function load() {
     setLoading(true);
     setErr(null);
@@ -70,7 +118,13 @@ export default function ImageDetailsClient({
       const j = safeParseJson(txt);
 
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar detalle");
-      setImg(j.image || null);
+      const image = j.image || null;
+      setImg(image);
+
+      const ch = String(image?.commit_hash || "").trim();
+      setCommitHash(ch);
+      const version = String(image?.branch_version || "").trim();
+      if (version) loadCommits(version);
     } catch (e: any) {
       setErr(e?.message || "Error");
       setImg(null);
@@ -255,6 +309,53 @@ export default function ImageDetailsClient({
               <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap">{img.description}</div>
             </div>
           )}
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm text-white/60">Commit (Odoo base)</div>
+              <button
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
+                onClick={saveCommit}
+                disabled={commitSaving || !img || img.image_type_scope === "public_image"}
+                title={img?.image_type_scope === "public_image" ? "No editable en públicas" : "Guardar commit"}
+              >
+                {commitSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+
+            {commitSaveErr && <div className="mt-2 text-sm text-red-300">{commitSaveErr}</div>}
+
+            <div className="mt-2 grid gap-1">
+              <input
+                value={commitHash}
+                onChange={(e) => setCommitHash(e.target.value)}
+                placeholder="sha"
+                list="lgd-commit-options-detail"
+                className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
+                disabled={commitSaving || !img || img.image_type_scope === "public_image"}
+              />
+
+              <datalist id="lgd-commit-options-detail">
+                {commits.map((c) => (
+                  <option
+                    key={c.id}
+                    value={c.commit_hash || ""}
+                    label={`${c.commit_hash_short || ""} — ${c.commit_title || ""}`}
+                  />
+                ))}
+              </datalist>
+
+              <div className="text-xs text-white/50">
+                {commitsLoading
+                  ? "Cargando commits..."
+                  : commitsErr
+                    ? `No se pudieron cargar commits: ${commitsErr}`
+                    : commits.length
+                      ? `Sugerencias: ${commits.length} commits (version ${img?.branch_version || "-"})`
+                      : `Sin commits guardados para ${img?.branch_version || "-"}`}
+              </div>
+            </div>
+          </div>
 
           {img?.resume && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
