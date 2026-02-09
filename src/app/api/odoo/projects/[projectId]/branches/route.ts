@@ -72,7 +72,15 @@ export async function GET(
     };
   });
 
-  const res = NextResponse.json({ ok: true, branches: enriched });
+  const res = NextResponse.json({
+    ok: true,
+    branches: enriched,
+    meta: {
+      branchesCount: (branches || []).length,
+      containerIdsCount: containerIds.length,
+      containersFound: Object.keys(containersById || {}).length,
+    },
+  });
   res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
   return res;
 }
