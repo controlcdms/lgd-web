@@ -16,6 +16,9 @@ type Project = {
   owner_id?: M2O;
   html_url?: string;
   ssh_url?: string;
+  // enriched summary (from API)
+  prod_release?: any;
+  prod_image?: string | null;
 };
 
 type Template = {
@@ -272,13 +275,42 @@ export default function ProjectsGrid({
                   <h3 className="font-semibold text-lg text-white tracking-tight group-hover:text-blue-200 transition-colors">
                     {p.repo_name}
                   </h3>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {/* Owner Badge */}
-                    {p.owner_id ? (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/60">
-                        {p.owner_id[1]}
-                      </span>
-                    ) : null}
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5">
+                      {/* Owner Badge */}
+                      {p.owner_id ? (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/60">
+                          {p.owner_id[1]}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {(p.prod_release || p.prod_image) && (
+                      <div className="text-[10px] font-mono text-white/50 space-y-1">
+                        {p.prod_release ? (
+                          <div>
+                            release: {Array.isArray(p.prod_release) ? p.prod_release[1] : String(p.prod_release)}
+                          </div>
+                        ) : null}
+                        {p.prod_image ? (
+                          <div
+                            className="truncate"
+                            title="Click para copiar image ref"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(String(p.prod_image));
+                              } catch {
+                                // ignore
+                              }
+                            }}
+                            style={{ cursor: "copy" }}
+                          >
+                            image: {p.prod_image}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 </div>
 

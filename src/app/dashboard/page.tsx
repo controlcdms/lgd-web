@@ -25,7 +25,7 @@ export default async function Dashboard() {
     "http://localhost:3000";
 
   const r = await fetch(`${origin}/api/odoo/projects`, {
-    cache: "no-store",
+    // allow API caching headers
     headers: { "x-github-id": String(githubId) },
   });
 
