@@ -105,7 +105,14 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, token_lgd: resource.token_lgd, resourceId: resource.id });
+    const res = NextResponse.json({
+      ok: true,
+      token_lgd: resource.token_lgd,
+      resourceId: resource.id,
+    });
+    // Token is long-lived per user; cache in browser to avoid repeated Odoo hits.
+    res.headers.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=86400");
+    return res;
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || String(e) },

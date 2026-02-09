@@ -21,10 +21,16 @@ export default function Sidebar() {
     try {
       setTokenLoading(true);
       setTokenErr(null);
-      const r = await fetch("/api/odoo/me/token-lgd", { cache: "no-store" });
+      const r = await fetch("/api/odoo/me/token-lgd");
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
-      setToken(String(d.token_lgd));
+      const tok = String(d.token_lgd || "");
+      setToken(tok);
+      try {
+        if (tok) window.localStorage.setItem("lgd_token_lgd", tok);
+      } catch {
+        // ignore
+      }
     } catch (e: any) {
       setToken(null);
       setTokenErr(e?.message || "No se pudo cargar token");
@@ -34,8 +40,14 @@ export default function Sidebar() {
   };
 
   useEffect(() => {
-    // Lazy-load token on first mount; it's per-user.
-    loadToken();
+    // Token is long-lived per user. Avoid fetching on every navigation.
+    // Best-effort: restore from localStorage if present.
+    try {
+      const cached = window.localStorage.getItem("lgd_token_lgd") || "";
+      if (cached) setToken(cached);
+    } catch {
+      // ignore
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
