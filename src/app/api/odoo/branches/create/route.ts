@@ -42,7 +42,10 @@ export async function POST(req: Request) {
       [payload]
     );
 
-    return NextResponse.json({ ok: true, result });
+    // Para seguimiento/diagnóstico en UI: devolvemos el payload enviado (sin oauth_uid)
+    const { oauth_uid, ...payloadPublic } = payload;
+
+    return NextResponse.json({ ok: true, result, payload: payloadPublic });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ ok: false, error: msg || "Error" }, { status: 500 });
