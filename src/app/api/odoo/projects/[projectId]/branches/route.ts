@@ -30,6 +30,8 @@ export async function GET(
       "server_url_nginx",
       "container_id",
       "user_id",
+      "jenkins_url_html",
+      "instructions_dev",
     ],
     200,
     0,

@@ -23,6 +23,8 @@ type Branch = {
   release_id?: any;
   current_docker_image?: string | null;
   other_server_docker_image?: string | null;
+  jenkins_url_html?: string | null;
+  instructions_dev?: string | null;
 };
 
 type DeployType =
@@ -76,11 +78,34 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [confirmMsg, setConfirmMsg] = useState<string>("");
   const [confirmAction, setConfirmAction] = useState<null | (() => void | Promise<void>)>(null);
 
+  // commits modal
+  const [commitsOpen, setCommitsOpen] = useState(false);
+  const [commitsBranch, setCommitsBranch] = useState<{ id: number; name: string } | null>(null);
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [commitsErr, setCommitsErr] = useState<string | null>(null);
+  const [commitsRows, setCommitsRows] = useState<any[]>([]);
+
   const openConfirm = (msg: string, action: () => void | Promise<void>) => {
     setConfirmMsg(msg);
     setConfirmAction(() => action);
     setConfirmOpen(true);
   };
+
+  async function loadBranchCommits(branchId: number) {
+    setCommitsLoading(true);
+    setCommitsErr(null);
+    try {
+      const r = await fetch(`/api/odoo/branches/${branchId}/commits?limit=20`);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j?.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
+      setCommitsRows(Array.isArray(j.commits) ? j.commits : []);
+    } catch (e: any) {
+      setCommitsRows([]);
+      setCommitsErr(e?.message || "Error cargando commits");
+    } finally {
+      setCommitsLoading(false);
+    }
+  }
 
   // defaults de Odoo para mostrar versión/release
   const [defaultsLoading, setDefaultsLoading] = useState(false);
@@ -157,6 +182,22 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
     return () => controller.abort();
   }, [projectId]);
+
+  // Listen for commits button
+  useEffect(() => {
+    const handler = (ev: any) => {
+      const detail = ev?.detail || {};
+      const branchId = Number(detail.branchId);
+      if (!Number.isFinite(branchId)) return;
+      const branchName = String(detail.branchName || "").trim() || `#${branchId}`;
+      setCommitsBranch({ id: branchId, name: branchName });
+      setCommitsOpen(true);
+      loadBranchCommits(branchId);
+    };
+    window.addEventListener("lgd:branch:commits", handler as any);
+    return () => window.removeEventListener("lgd:branch:commits", handler as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ✅ cargar defaults cuando se abre el modal o cambia el tipo
   useEffect(() => {
@@ -436,6 +477,37 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             <Button
               size="xs"
               variant="default"
+              className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
+              disabled={isBusy(b.id)}
+              onClick={() => {
+                // Show recent branch commits (Odoo branch.commits)
+                window.dispatchEvent(
+                  new CustomEvent("lgd:branch:commits", { detail: { branchId: b.id, branchName: b.name } })
+                );
+              }}
+              title="Ver commits"
+            >
+              🧾 Commits
+            </Button>
+
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
+              disabled={isBusy(b.id) || !Array.isArray(b.container_id) || !b.container_id[0]}
+              onClick={() => {
+                const cid = Array.isArray(b.container_id) ? b.container_id[0] : null;
+                if (!cid) return;
+                window.open(`/api/odoo/containers/${cid}/open`, "_blank", "noopener,noreferrer");
+              }}
+              title="Abrir contenedor en Odoo (ver logs)"
+            >
+              📜 Logs
+            </Button>
+
+            <Button
+              size="xs"
+              variant="default"
               className="bg-black/20 hover:bg-red-900/40 hover:text-red-200 border-white/10"
               loading={busy[b.id] === "expire"}
               disabled={isBusy(b.id)}
@@ -560,6 +632,48 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             Confirm
           </Button>
         </Group>
+      </Modal>
+
+      <Modal
+        opened={commitsOpen}
+        onClose={() => setCommitsOpen(false)}
+        title={
+          <span className="font-mono text-sm uppercase tracking-widest text-white/70">
+            Commits{commitsBranch ? ` · ${commitsBranch.name}` : ""}
+          </span>
+        }
+        centered
+        className="dark-modal"
+        styles={{
+          content: { backgroundColor: "#09090b", border: "1px solid rgba(255,255,255,0.1)" },
+          header: { backgroundColor: "#09090b" },
+          body: { backgroundColor: "#09090b" },
+        }}
+      >
+        {commitsErr ? (
+          <div className="text-sm text-red-200">{commitsErr}</div>
+        ) : commitsLoading ? (
+          <div className="text-sm text-white/60">Cargando commits...</div>
+        ) : commitsRows.length === 0 ? (
+          <div className="text-sm text-white/60">(sin commits)</div>
+        ) : (
+          <div className="space-y-2">
+            {commitsRows.map((c) => (
+              <div key={c.id} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                <div className="text-xs font-mono text-white/70 break-all">{c.commit_id || "-"}</div>
+                {c.commit_message ? (
+                  <div className="text-sm text-white/80 whitespace-pre-wrap mt-1">
+                    {String(c.commit_message).slice(0, 220)}
+                  </div>
+                ) : null}
+                <div className="text-[11px] text-white/40 mt-1">
+                  {c.commit_datetime || "-"}
+                  {c.commit_pusher ? ` · ${c.commit_pusher}` : c.commit_user ? ` · ${c.commit_user}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
 
       <Modal
