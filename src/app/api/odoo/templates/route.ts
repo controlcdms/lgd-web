@@ -37,8 +37,8 @@ export async function GET() {
 
     // Only list templates that are published AND (public OR owned by current user).
     const domain: any[] = [
-      ["doodba_tags.state", "=", "publish"],
       "&",
+      ["doodba_tags.state", "=", "publish"],
       "|",
       ["image_type_scope", "=", "public_image"],
       ["user_id", "=", odooUserId || -1],
