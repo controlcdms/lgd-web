@@ -43,7 +43,9 @@ export default function ImagesClient() {
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch("/api/odoo/images", { cache: "no-store" });
+      // Allow browser caching; the API sets Cache-Control.
+      // Use reload on manual refresh if needed.
+      const r = await fetch("/api/odoo/images");
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar imágenes");
       setImages(j.images || []);
@@ -107,6 +109,15 @@ export default function ImagesClient() {
         </div>
 
         <div className="flex gap-2">
+          <button
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+            onClick={() => load()}
+            disabled={loading}
+            title="Refrescar"
+          >
+            {loading ? "..." : "↻"}
+          </button>
+
           <button
             className="rounded-xl bg-green-600 px-3 py-2 text-sm hover:bg-green-500"
             onClick={() => setShowNewImage(true)}

@@ -21,7 +21,11 @@ export async function GET() {
       [String(githubId || ""), String(githubLogin || ""), 200]
     );
 
-    return NextResponse.json({ ok: true, images });
+    // Cache a little to avoid hammering Odoo on every navigation.
+    // Authenticated response => private.
+    const res = NextResponse.json({ ok: true, images });
+    res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+    return res;
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Error" },
