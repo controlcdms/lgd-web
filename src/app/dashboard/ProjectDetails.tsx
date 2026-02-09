@@ -325,6 +325,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
   const renderBranchCard = (b: Branch) => {
     const isRunning = b.container_status === "running";
+    const isLocal = b.type_deploy === "local_deploy";
     const statusColor = isRunning ? "text-emerald-400" : "text-zinc-500";
     const statusBg = isRunning ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/5 border-white/10";
 
@@ -347,40 +348,42 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           </div>
         </div>
 
-        <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="xs"
-            variant="default"
-            className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
-            loading={busy[b.id] === "start"}
-            disabled={isBusy(b.id)}
-            onClick={() => runAction(b.id, "start")}
-          >
-            ▶ Start
-          </Button>
+        {!isLocal ? (
+          <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
+              loading={busy[b.id] === "start"}
+              disabled={isBusy(b.id)}
+              onClick={() => runAction(b.id, "start")}
+            >
+              ▶ Start
+            </Button>
 
-          <Button
-            size="xs"
-            variant="default"
-            className="bg-black/20 hover:bg-yellow-900/40 hover:text-yellow-200 border-white/10"
-            loading={busy[b.id] === "stop"}
-            disabled={isBusy(b.id)}
-            onClick={() => runAction(b.id, "stop")}
-          >
-            ⏸ Stop
-          </Button>
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-yellow-900/40 hover:text-yellow-200 border-white/10"
+              loading={busy[b.id] === "stop"}
+              disabled={isBusy(b.id)}
+              onClick={() => runAction(b.id, "stop")}
+            >
+              ⏸ Stop
+            </Button>
 
-          <Button
-            size="xs"
-            variant="default"
-            className="bg-black/20 hover:bg-red-900/40 hover:text-red-200 border-white/10"
-            loading={busy[b.id] === "expire"}
-            disabled={isBusy(b.id)}
-            onClick={() => runAction(b.id, "expire")}
-          >
-            🗑 Kill
-          </Button>
-        </div>
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-red-900/40 hover:text-red-200 border-white/10"
+              loading={busy[b.id] === "expire"}
+              disabled={isBusy(b.id)}
+              onClick={() => runAction(b.id, "expire")}
+            >
+              🗑 Kill
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   };
