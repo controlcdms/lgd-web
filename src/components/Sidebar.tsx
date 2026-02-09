@@ -106,7 +106,7 @@ export default function Sidebar() {
         >
           <span className="flex items-center gap-2">
             <span className="text-sm">⬇</span>
-            COPY_INSTALL_CMD
+            Copy install command
           </span>
           <span className="text-[10px] text-blue-100/60">curl|bash</span>
         </button>
@@ -126,7 +126,7 @@ export default function Sidebar() {
         >
           <span className="flex items-center gap-2">
             <span className="text-sm">🔑</span>
-            {token ? "COPY_TOKEN" : tokenLoading ? "LOADING_TOKEN..." : "GET_TOKEN"}
+            {token ? "Copy token" : tokenLoading ? "Loading..." : "Get token"}
           </span>
           <span className="text-[10px] text-white/40">
             {token ? `${token.slice(0, 6)}…${token.slice(-4)}` : tokenErr ? "ERR" : ""}
@@ -147,7 +147,7 @@ export default function Sidebar() {
         >
           <span className="flex items-center gap-2">
             <span className="text-sm">↩</span>
-            SIGN_OUT
+            Sign out
           </span>
           <span className="text-[10px] text-rose-100/60">logout</span>
         </button>
