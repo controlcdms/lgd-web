@@ -7,7 +7,13 @@ export type SatConfig = {
 };
 
 function cleanBaseUrl(url: string) {
-  return String(url || "").trim().replace(/\/+$/, "");
+  let u = String(url || "").trim().replace(/\/+$/, "");
+  if (!u) return u;
+  if (!/^https?:\/\//i.test(u)) {
+    // Most of our satellites run behind https; default to https.
+    u = `https://${u}`;
+  }
+  return u;
 }
 
 export async function getSatConfigFromBranch(branchId: number): Promise<SatConfig> {
