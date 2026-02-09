@@ -325,7 +325,9 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
   const renderBranchCard = (b: Branch) => {
     const isRunning = b.container_status === "running";
-    const isLocal = b.type_deploy === "local_deploy";
+    // Local branches should not have start/stop/kill buttons.
+    // Some legacy data uses type_deploy=="local" instead of "local_deploy".
+    const isLocal = b.type_deploy === "local_deploy" || b.type_deploy === "local";
     const statusColor = isRunning ? "text-emerald-400" : "text-zinc-500";
     const statusBg = isRunning ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/5 border-white/10";
 
