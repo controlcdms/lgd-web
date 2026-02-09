@@ -167,7 +167,7 @@ export default function ImagesClient() {
       {/* list */}
       <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
         <div className="bg-zinc-950/60 px-4 py-3 text-xs text-white/60">
-          NOMBRE • VERSIÓN • ESTADO • TIPO • ACCIONES
+          NOMBRE • VERSIÓN • ESTADO • TIPO
         </div>
 
         {loading ? (
