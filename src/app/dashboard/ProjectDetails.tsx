@@ -658,7 +658,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               Cancel
             </Button>
 
-            <Button onClick={createBranch} loading={creating} color="blue">
+            <Button onClick={() => createBranch()} loading={creating} color="blue">
               Initialize
             </Button>
           </Group>

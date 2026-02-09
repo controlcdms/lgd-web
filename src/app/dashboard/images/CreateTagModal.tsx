@@ -18,7 +18,6 @@ export default function CreateTagModal({
   onPublished?: () => void;
 }) {
   const [message, setMessage] = useState("");
-  const [resume, setResume] = useState(defaultResume || "");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -26,8 +25,15 @@ export default function CreateTagModal({
     if (!opened) return;
     setErr(null);
     setLoading(false);
-    setMessage("");
-    setResume(defaultResume || "");
+
+    // Pre-fill release notes with a helpful default.
+    // If backend provides a summary (repos/pip/apt), use it.
+    const base = (defaultResume || "").trim();
+    setMessage(
+      base
+        ? `Cambios en este release:\n\n${base}`
+        : "Se creó / actualizó la imagen."
+    );
   }, [opened, defaultResume]);
 
   const canConfirm = useMemo(() => {
@@ -47,7 +53,8 @@ export default function CreateTagModal({
         body: JSON.stringify({
           template_id: templateId,
           message: message.trim(),
-          resume: resume.trim(),
+          // Keep resume empty to avoid duplicating inputs. Odoo stores message as last_message.
+          resume: "",
         }),
       });
       const j = await r.json();
@@ -96,26 +103,19 @@ export default function CreateTagModal({
         )}
 
         <div className="px-6 py-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-white/80">Release notes</label>
-              <textarea
-                className="mt-2 h-32 w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Qué cambia en este release..."
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-white/80">Resume</label>
-              <textarea
-                className="mt-2 h-32 w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
-                value={resume}
-                onChange={(e) => setResume(e.target.value)}
-                placeholder="Resumen (opcional)"
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium text-white/80">Release notes</label>
+            <textarea
+              className="mt-2 h-40 w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Qué cambia en este release..."
+            />
+            {!!defaultResume && (
+              <div className="mt-2 text-[11px] text-white/40">
+                Tip: este texto se prellena con los cambios detectados (pip/apt/repos). Edítalo si quieres.
+              </div>
+            )}
           </div>
         </div>
 
