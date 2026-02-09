@@ -18,6 +18,11 @@ type Branch = {
   type_deploy?: string;
   branch_status?: string;
   container_status?: string;
+  user_id?: any;
+  container_id?: any;
+  release_id?: any;
+  current_docker_image?: string | null;
+  other_server_docker_image?: string | null;
 };
 
 type DeployType =
@@ -344,9 +349,50 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               {b.branch_status || "UNKNOWN"}
             </span>
           </div>
-          <div className="text-xs text-white/50 mt-1 flex items-center gap-2 font-mono">
+          <div className="text-xs text-white/50 mt-1 flex flex-wrap items-center gap-2 font-mono">
             <span className={statusColor}>● {b.container_status || "STOPPED"}</span>
-            {/* Aquí podriamos poner commit hash si tuvieramos el dato */}
+            {b.release_id ? (
+              <span className="text-white/40">
+                release: {Array.isArray(b.release_id) ? b.release_id[1] : String(b.release_id)}
+              </span>
+            ) : null}
+            {b.current_docker_image ? (
+              <span
+                className="text-white/40 break-all"
+                title="Click para copiar"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(String(b.current_docker_image));
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{ cursor: "copy" }}
+              >
+                image: {b.current_docker_image}
+              </span>
+            ) : null}
+            {!b.current_docker_image && b.other_server_docker_image ? (
+              <span
+                className="text-white/40 break-all"
+                title="Click para copiar"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(String(b.other_server_docker_image));
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{ cursor: "copy" }}
+              >
+                image: {b.other_server_docker_image}
+              </span>
+            ) : null}
+            {b.user_id ? (
+              <span className="text-white/30">
+                user: {Array.isArray(b.user_id) ? b.user_id[1] : String(b.user_id)}
+              </span>
+            ) : null}
           </div>
         </div>
 
