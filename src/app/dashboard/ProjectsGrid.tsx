@@ -10,7 +10,7 @@ type Project = {
   repo_name: string;
   progress_status?: string;
   active?: boolean;
-  base_version?: string;
+  base_version?: any; // many2one doodba.template in Odoo
   branch_version?: string;
   user_id?: M2O;
   owner_id?: M2O;
@@ -285,22 +285,24 @@ export default function ProjectsGrid({
                       ) : null}
                     </div>
 
-                    {p.prod_image && (
+                    {p.base_version && (
                       <div className="text-[10px] font-mono text-white/50">
-                        <div
-                          className="truncate"
-                          title="Click para copiar image ref"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              await navigator.clipboard.writeText(String(p.prod_image));
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          style={{ cursor: "copy" }}
-                        >
-                          image: {p.prod_image}
+                        <div className="truncate">
+                          image: {Array.isArray(p.base_version) ? p.base_version[1] : String(p.base_version)}
+                          {p.branch_version ? ` [v${p.branch_version}]` : ""}
+                          {Array.isArray(p.base_version) && p.base_version[0] ? (
+                            <button
+                              type="button"
+                              className="ml-2 text-blue-400 hover:text-blue-300"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/dashboard/images/${p.base_version[0]}`);
+                              }}
+                              title="Ver imagen"
+                            >
+                              ↗
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     )}
