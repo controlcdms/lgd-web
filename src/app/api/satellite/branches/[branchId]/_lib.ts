@@ -53,19 +53,25 @@ export async function getSatConfigFromBranch(branchId: number): Promise<SatConfi
 
 export async function satFetchJson(config: SatConfig, path: string, body: any) {
   const url = config.baseUrl + path;
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.token}`,
-    },
-    body: JSON.stringify(body ?? {}),
-    cache: "no-store",
-  });
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify(body ?? {}),
+      cache: "no-store",
+    });
+  } catch (e: any) {
+    throw new Error(`satellite fetch failed url=${url} err=${e?.message || String(e)}`);
+  }
+
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     const msg = j?.detail?.error || j?.detail || j?.error || `HTTP ${r.status}`;
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    throw new Error(`satellite HTTP error url=${url} :: ` + (typeof msg === "string" ? msg : JSON.stringify(msg)));
   }
   return j;
 }
