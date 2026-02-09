@@ -199,7 +199,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   async function createProductionAuto() {
     if (!projectId) return;
 
-    const ok = confirm("¿Crear rama de PRODUCCIÓN para este proyecto?");
+    const ok = confirm("¿Crear rama de producción para este proyecto?");
     if (!ok) return;
 
     setCreatingProd(true);
@@ -238,7 +238,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
 
     if (newType === "production_deploy") {
-      const ok = confirm("¿Seguro? Esto creará una rama de PRODUCCIÓN.");
+      const ok = confirm("¿Seguro? Esto creará una rama de producción.");
       if (!ok) return;
     }
 
@@ -439,7 +439,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   if (!projectId) {
     return (
       <div className="animate-in fade-in flex items-center justify-center h-full text-sm text-white/30 font-mono border border-dashed border-white/10 rounded-2xl bg-white/5 min-h-[300px]">
-        SELECT_PROJECT_MODULE_INITIALIZED...
+        Select a project to view environments…
       </div>
     );
   }
@@ -459,7 +459,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               disabled={creatingProd}
               onClick={createProductionAuto}
             >
-              {creatingProd ? "..." : "⚠"} CREATE_PROD
+              {creatingProd ? "..." : "⚠"} Create prod
             </button>
           )}
 
@@ -470,7 +470,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               setShowCreate(true);
             }}
           >
-            <span>＋</span> NEW_BRANCH
+            <span>＋</span> New branch
           </button>
         </div>
       </div>
@@ -492,23 +492,23 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       {loading && (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-white/50">
           <Loader size="sm" color="blue" />
-          <div className="text-xs font-mono animate-pulse">SYNCING_DATA_STREAMS...</div>
+          <div className="text-xs font-mono animate-pulse">Syncing…</div>
         </div>
       )}
 
       {!loading && !error && branches.length === 0 && (
         <div className="py-12 text-center text-white/30 text-sm font-mono border border-white/5 rounded-xl bg-white/5">
-          NO_ACTIVE_DEPLOYMENTS
+          No active deployments.
         </div>
       )}
 
       {!loading && (
         <div>
-          {renderBranchGroup("PRODUCTION", groupedBranches.production, "text-rose-400")}
-          {renderBranchGroup("STAGING", groupedBranches.staging, "text-amber-400")}
-          {renderBranchGroup("TESTING", groupedBranches.testing, "text-cyan-400")}
-          {renderBranchGroup("LOCAL DEV", groupedBranches.local, "text-blue-400")}
-          {renderBranchGroup("OTHERS", groupedBranches.other, "text-zinc-400")}
+          {renderBranchGroup("Production", groupedBranches.production, "text-rose-400")}
+          {renderBranchGroup("Staging", groupedBranches.staging, "text-amber-400")}
+          {renderBranchGroup("Testing", groupedBranches.testing, "text-cyan-400")}
+          {renderBranchGroup("Local dev", groupedBranches.local, "text-blue-400")}
+          {renderBranchGroup("Others", groupedBranches.other, "text-zinc-400")}
         </div>
       )}
 
@@ -551,7 +551,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               setError(null);
             }}
             data={[
-              { value: "production_deploy", label: "🔴 PRODUCTION" },
+              { value: "production_deploy", label: "🔴 Production" },
               { value: "staging_deploy", label: "🟡 Staging" },
               { value: "testing_deploy", label: "🔵 Testing" },
               { value: "local_deploy", label: "⚪ Local" },

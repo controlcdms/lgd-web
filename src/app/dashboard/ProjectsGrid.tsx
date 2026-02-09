@@ -172,7 +172,7 @@ export default function ProjectsGrid({
           >
             <div className="flex items-center justify-between mb-1">
               <div className="text-xl font-bold text-white tracking-tight">Deploy New Unit</div>
-              <div className="text-[10px] font-mono border border-blue-500/30 text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">INIT_SEQ</div>
+              <div className="text-[10px] font-mono border border-blue-500/30 text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Init seq</div>
             </div>
             <div className="text-sm text-white/50 mb-6 font-light">
               Provision a new Odoo instance container.
@@ -313,7 +313,7 @@ export default function ProjectsGrid({
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-white/40">Status</span>
                     <span className={p.active ? "text-emerald-400" : "text-zinc-500"}>
-                      {p.active ? "ONLINE" : "OFFLINE"}
+                      {p.active ? "Online" : "Offline"}
                     </span>
                   </div>
                   {/* Fake stats/lines for visuals if needed, or real data if available */}
