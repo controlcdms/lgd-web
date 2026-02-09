@@ -68,7 +68,7 @@ export default function ProjectsGrid({
     setLoadingTemplates(true);
     setErr(null);
     try {
-      const r = await fetch("/api/odoo/templates", { cache: "no-store" });
+      const r = await fetch("/api/odoo/templates");
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar templates");
       setTemplates(j.templates || []);

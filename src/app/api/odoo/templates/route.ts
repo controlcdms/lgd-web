@@ -11,27 +11,51 @@ export async function GET() {
       return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
     }
 
-    // Copia el domain de tu wizard (sin uid directo; en servidor ya estás autenticado)
-    const domain = [
+    const githubLogin = (session as any)?.user?.githubLogin ?? null;
+
+    // Resolve current Odoo user id (needed to filter private templates).
+    let odooUserId: number | null = null;
+    if (githubLogin) {
+      // Primary mapping: login
+      let users = await odooSearchRead(
+        "res.users",
+        [["login", "=", String(githubLogin)]],
+        ["id"],
+        1
+      );
+      // Fallback: git_username
+      if (!users?.length) {
+        users = await odooSearchRead(
+          "res.users",
+          [["git_username", "=", String(githubLogin)]],
+          ["id"],
+          1
+        );
+      }
+      odooUserId = users?.[0]?.id ?? null;
+    }
+
+    // Only list templates that are published AND (public OR owned by current user).
+    const domain: any[] = [
       ["doodba_tags.state", "=", "publish"],
+      "&",
       "|",
       ["image_type_scope", "=", "public_image"],
-      ["user_id", "=", (session as any)?.odooUserId || false], // si no lo tienes, quita esta línea y deja solo public
+      ["user_id", "=", odooUserId || -1],
     ];
-
-    // Si no tienes odooUserId en sesión, usa solo public:
-    const safeDomain = [["doodba_tags.state", "=", "publish"]];
 
     const rows = await odooSearchRead(
       "doodba.template",
-      safeDomain,
+      domain,
       ["id", "name", "branch_version", "image_type_scope"],
       200,
       0,
       "name asc"
     );
 
-    return NextResponse.json({ ok: true, templates: rows });
+    const res = NextResponse.json({ ok: true, templates: rows });
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=120");
+    return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Error" }, { status: 500 });
   }
