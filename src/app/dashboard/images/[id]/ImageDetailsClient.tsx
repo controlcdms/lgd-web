@@ -69,6 +69,7 @@ export default function ImageDetailsClient({
   const [releases, setReleases] = useState<ReleaseRow[]>([]);
   const [releasesLoading, setReleasesLoading] = useState(false);
   const [releasesErr, setReleasesErr] = useState<string | null>(null);
+  const [releasesLimit, setReleasesLimit] = useState(20);
 
   const [commitHash, setCommitHash] = useState("");
   const [commitOriginal, setCommitOriginal] = useState("");
@@ -151,18 +152,20 @@ export default function ImageDetailsClient({
     }
   }
 
-  async function loadReleases() {
+  async function loadReleases(limit?: number) {
+    const lim = Math.max(1, Math.min(200, Number(limit || releasesLimit || 20)));
     setReleasesLoading(true);
     setReleasesErr(null);
     try {
-      const r = await fetch(`/api/odoo/images/${imageId}/releases`, {
-        cache: "no-store",
-      });
+      const r = await fetch(
+        `/api/odoo/images/${imageId}/releases?limit=${encodeURIComponent(String(lim))}`
+      );
       const txt = await r.text();
       const j = safeParseJson(txt);
 
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar releases");
       setReleases(Array.isArray(j.releases) ? j.releases : []);
+      setReleasesLimit(lim);
     } catch (e: any) {
       setReleasesErr(e?.message || "Error releases");
       setReleases([]);
@@ -554,7 +557,7 @@ export default function ImageDetailsClient({
 
                   <button
                     className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-                    onClick={loadReleases}
+                    onClick={() => loadReleases(releasesLimit)}
                     disabled={releasesLoading}
                   >
                     {releasesLoading ? "Actualizando..." : "Actualizar"}
@@ -569,8 +572,16 @@ export default function ImageDetailsClient({
                   <div className="mt-2 text-sm text-white/60">-</div>
                 ) : (
                   <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
-                      RELEASE • REF • FECHA • ACCIONES
+                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60 flex items-center justify-between">
+                      <span>RELEASE • REF • FECHA • ACCIONES</span>
+                      <button
+                        type="button"
+                        className="text-[10px] rounded-lg border border-white/15 bg-white/5 px-2 py-1 hover:bg-white/10"
+                        onClick={() => loadReleases(Math.min(200, (releasesLimit || 20) + 20))}
+                        title="Cargar más releases"
+                      >
+                        + más
+                      </button>
                     </div>
                     <div className="divide-y divide-white/10">
                       {releases.map((r) => (
@@ -610,7 +621,7 @@ export default function ImageDetailsClient({
 
                   <button
                     className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-                    onClick={loadReleases}
+                    onClick={() => loadReleases(releasesLimit)}
                     disabled={releasesLoading}
                   >
                     {releasesLoading ? "Actualizando..." : "Actualizar"}
@@ -625,8 +636,16 @@ export default function ImageDetailsClient({
                   <div className="mt-2 text-sm text-white/60">-</div>
                 ) : (
                   <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60">
-                      NOMBRE • REF • FECHA
+                    <div className="bg-zinc-950/60 px-4 py-2 text-xs text-white/60 flex items-center justify-between">
+                      <span>NOMBRE • REF • FECHA</span>
+                      <button
+                        type="button"
+                        className="text-[10px] rounded-lg border border-white/15 bg-white/5 px-2 py-1 hover:bg-white/10"
+                        onClick={() => loadReleases(Math.min(200, (releasesLimit || 20) + 20))}
+                        title="Cargar más releases"
+                      >
+                        + más
+                      </button>
                     </div>
                     <div className="divide-y divide-white/10">
                       {releases.map((r) => (
