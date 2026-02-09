@@ -24,15 +24,16 @@ export async function getSatConfigFromBranch(branchId: number): Promise<SatConfi
   if (!containerId) throw new Error("Branch has no container_id");
 
   // container.deploy(stack + resource_deploy_id)
-  // Note: this DB doesn't have field `name`; we use `database` as the stack/container name.
+  // Different DBs use different fields for the compose-stack name.
+  // Prefer pipeline_name (commonly matches compose-stacks/<stack>/compose.yaml), fallback to database.
   const containers = await odooCall<any[]>(
     "container.deploy",
     "read",
-    [[containerId], ["database", "resource_deploy_id"]]
+    [[containerId], ["pipeline_name", "database", "resource_deploy_id"]]
   );
   const c = containers?.[0];
-  const stack = String(c?.database || "").trim();
-  if (!stack) throw new Error("container.deploy.database missing");
+  const stack = String(c?.pipeline_name || c?.database || "").trim();
+  if (!stack) throw new Error("container.deploy.pipeline_name/database missing");
   const resourceId = Array.isArray(c?.resource_deploy_id) ? c.resource_deploy_id[0] : null;
   if (!resourceId) throw new Error("container.deploy.resource_deploy_id missing");
 
