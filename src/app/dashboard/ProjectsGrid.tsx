@@ -285,30 +285,23 @@ export default function ProjectsGrid({
                       ) : null}
                     </div>
 
-                    {(p.prod_release || p.prod_image) && (
-                      <div className="text-[10px] font-mono text-white/50 space-y-1">
-                        {p.prod_release ? (
-                          <div>
-                            release: {Array.isArray(p.prod_release) ? p.prod_release[1] : String(p.prod_release)}
-                          </div>
-                        ) : null}
-                        {p.prod_image ? (
-                          <div
-                            className="truncate"
-                            title="Click para copiar image ref"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                await navigator.clipboard.writeText(String(p.prod_image));
-                              } catch {
-                                // ignore
-                              }
-                            }}
-                            style={{ cursor: "copy" }}
-                          >
-                            image: {p.prod_image}
-                          </div>
-                        ) : null}
+                    {p.prod_image && (
+                      <div className="text-[10px] font-mono text-white/50">
+                        <div
+                          className="truncate"
+                          title="Click para copiar image ref"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await navigator.clipboard.writeText(String(p.prod_image));
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                          style={{ cursor: "copy" }}
+                        >
+                          image: {p.prod_image}
+                        </div>
                       </div>
                     )}
                   </div>
