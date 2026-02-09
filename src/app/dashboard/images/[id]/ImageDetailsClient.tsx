@@ -259,7 +259,7 @@ export default function ImageDetailsClient({
             </button>
 
             <button
-              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+              className="rounded-xl bg-green-600 px-3 py-2 text-sm hover:bg-green-500"
               onClick={() => router.push("/dashboard/images")}
               title="Crear nueva imagen"
             >
