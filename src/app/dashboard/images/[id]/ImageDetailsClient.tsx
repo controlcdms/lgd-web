@@ -81,17 +81,21 @@ export default function ImageDetailsClient({
 
   const [showBuilderLogs, setShowBuilderLogs] = useState(false);
 
-  async function loadCommits(version: string) {
+  const [commitsLimit, setCommitsLimit] = useState(10);
+
+  async function loadCommits(version: string, limit?: number) {
+    const lim = Math.max(1, Math.min(200, Number(limit || commitsLimit || 10)));
     setCommitsLoading(true);
     setCommitsErr(null);
     try {
-      const r = await fetch(`/api/odoo/commits?version=${encodeURIComponent(version)}&limit=80`, {
-        cache: "no-store",
-      });
+      const r = await fetch(
+        `/api/odoo/commits?version=${encodeURIComponent(version)}&limit=${encodeURIComponent(String(lim))}`
+      );
       const txt = await r.text();
       const j = JSON.parse(txt);
       if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo cargar commits");
       setCommits(Array.isArray(j.commits) ? j.commits : []);
+      setCommitsLimit(lim);
     } catch (e: any) {
       setCommits([]);
       setCommitsErr(e?.message || "Error cargando commits");
@@ -139,7 +143,7 @@ export default function ImageDetailsClient({
       // If commit is already set, keep it locked until user clicks Edit.
       setCommitEditing(!ch);
       const version = String(image?.branch_version || "").trim();
-      if (version) loadCommits(version);
+      if (version) loadCommits(version, 10);
     } catch (e: any) {
       setErr(e?.message || "Error");
       setImg(null);
@@ -428,14 +432,27 @@ export default function ImageDetailsClient({
                 ))}
               </datalist>
 
-              <div className="text-xs text-white/50">
-                {commitsLoading
-                  ? "Cargando commits..."
-                  : commitsErr
-                    ? `No se pudieron cargar commits: ${commitsErr}`
-                    : commits.length
-                      ? `Sugerencias: ${commits.length} commits (version ${img?.branch_version || "-"})`
-                      : `Sin commits guardados para ${img?.branch_version || "-"}`}
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-white/50">
+                  {commitsLoading
+                    ? "Cargando commits..."
+                    : commitsErr
+                      ? `No se pudieron cargar commits: ${commitsErr}`
+                      : commits.length
+                        ? `Sugerencias: ${commits.length} commits (version ${img?.branch_version || "-"})`
+                        : `Sin commits guardados para ${img?.branch_version || "-"}`}
+                </div>
+
+                {!!img?.branch_version && !commitsLoading && !commitsErr && (
+                  <button
+                    className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1 hover:bg-white/10"
+                    onClick={() => loadCommits(String(img.branch_version), Math.min(200, (commitsLimit || 10) + 20))}
+                    type="button"
+                    title="Traer más commits"
+                  >
+                    + más
+                  </button>
+                )}
               </div>
             </div>
           </div>

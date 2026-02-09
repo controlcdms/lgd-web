@@ -33,7 +33,9 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Imagen no encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, image: img });
+    const res = NextResponse.json({ ok: true, image: img });
+    res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+    return res;
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Error cargando imagen" },

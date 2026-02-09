@@ -22,7 +22,9 @@ export async function GET(
       "create_date desc"
     );
 
-    return NextResponse.json({ ok: true, releases: releases || [] });
+    const res = NextResponse.json({ ok: true, releases: releases || [] });
+    res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+    return res;
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || "Error" },

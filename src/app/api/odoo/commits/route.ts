@@ -27,7 +27,9 @@ export async function GET(req: Request) {
       "commit_date desc, id desc"
     );
 
-    return NextResponse.json({ ok: true, commits: commits || [] });
+    const res = NextResponse.json({ ok: true, commits: commits || [] });
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=120");
+    return res;
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e?.message || String(e) },
