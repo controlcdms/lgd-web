@@ -71,6 +71,17 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [creating, setCreating] = useState(false);
   const [creatingProd, setCreatingProd] = useState(false);
 
+  // nicer confirm modal (avoid browser confirm)
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMsg, setConfirmMsg] = useState<string>("");
+  const [confirmAction, setConfirmAction] = useState<null | (() => void | Promise<void>)>(null);
+
+  const openConfirm = (msg: string, action: () => void | Promise<void>) => {
+    setConfirmMsg(msg);
+    setConfirmAction(() => action);
+    setConfirmOpen(true);
+  };
+
   // defaults de Odoo para mostrar versión/release
   const [defaultsLoading, setDefaultsLoading] = useState(false);
   const [baseVersionName, setBaseVersionName] = useState<string | null>(null);
@@ -196,11 +207,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return () => controller.abort();
   }, [projectId, showCreate, newType]);
 
-  async function createProductionAuto() {
+  async function _createProductionAutoConfirmed() {
     if (!projectId) return;
-
-    const ok = confirm("¿Crear rama de producción para este proyecto?");
-    if (!ok) return;
 
     setCreatingProd(true);
     setError(null);
@@ -227,7 +235,12 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
-  async function createBranch() {
+  async function createProductionAuto() {
+    if (!projectId) return;
+    openConfirm("¿Crear rama de producción para este proyecto?", _createProductionAutoConfirmed);
+  }
+
+  async function createBranch(skipConfirm = false) {
     if (!projectId) return;
 
     const name = newName.trim();
@@ -237,9 +250,9 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       return;
     }
 
-    if (newType === "production_deploy") {
-      const ok = confirm("¿Seguro? Esto creará una rama de producción.");
-      if (!ok) return;
+    if (newType === "production_deploy" && !skipConfirm) {
+      openConfirm("¿Seguro? Esto creará una rama de producción.", () => createBranch(true));
+      return;
     }
 
     if (releaseOptions.length > 0 && !selectedReleaseId) {
@@ -274,10 +287,10 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
-  async function runAction(branchId: number, action: ActionKind) {
-    if (action === "expire") {
-      const ok = confirm("¿Seguro que quieres expirar esta rama?");
-      if (!ok) return;
+  async function runAction(branchId: number, action: ActionKind, skipConfirm = false) {
+    if (action === "expire" && !skipConfirm) {
+      openConfirm("¿Seguro que quieres expirar esta rama?", () => runAction(branchId, action, true));
+      return;
     }
 
     setBusy((p) => ({ ...p, [branchId]: action }));
@@ -511,6 +524,43 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           {renderBranchGroup("Others", groupedBranches.other, "text-zinc-400")}
         </div>
       )}
+
+      <Modal
+        opened={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={<span className="font-mono text-sm uppercase tracking-widest text-white/70">Confirm</span>}
+        centered
+        className="dark-modal"
+        styles={{
+          content: { backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)' },
+          header: { backgroundColor: '#09090b' },
+          body: { backgroundColor: '#09090b' }
+        }}
+      >
+        <div className="text-sm text-white/80">{confirmMsg}</div>
+        <Group justify="flex-end" mt="md">
+          <Button
+            variant="default"
+            className="bg-transparent border-white/10 text-white/60 hover:text-white"
+            onClick={() => setConfirmOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="blue"
+            onClick={async () => {
+              setConfirmOpen(false);
+              try {
+                await Promise.resolve(confirmAction?.());
+              } catch (e: any) {
+                setError(e?.message || "Error");
+              }
+            }}
+          >
+            Confirm
+          </Button>
+        </Group>
+      </Modal>
 
       <Modal
         opened={showCreate}
