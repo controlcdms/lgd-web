@@ -23,11 +23,11 @@ export async function GET(
       ["id", "name", "ref", "create_date", "state", "sequence_number"],
       limit,
       offset,
-      "create_date desc"
+      "id desc"
     );
 
     const res = NextResponse.json({ ok: true, releases: releases || [], limit, offset });
-    res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+    res.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
     return res;
   } catch (e: any) {
     return NextResponse.json(
