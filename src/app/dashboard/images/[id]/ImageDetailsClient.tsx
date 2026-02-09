@@ -142,8 +142,7 @@ export default function ImageDetailsClient({
       setCommitOriginal(ch);
       // If commit is already set, keep it locked until user clicks Edit.
       setCommitEditing(!ch);
-      const version = String(image?.branch_version || "").trim();
-      if (version) loadCommits(version, 10);
+      // Load commits lazily only when user enters edit mode.
     } catch (e: any) {
       setErr(e?.message || "Error");
       setImg(null);
@@ -396,7 +395,13 @@ export default function ImageDetailsClient({
               ) : (
                 <button
                   className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-60"
-                  onClick={() => setCommitEditing(true)}
+                  onClick={() => {
+                    setCommitEditing(true);
+                    const version = String(img?.branch_version || "").trim();
+                    if (version && commits.length === 0 && !commitsLoading && !commitsErr) {
+                      loadCommits(version, 10);
+                    }
+                  }}
                   disabled={!img || img.image_type_scope === "public_image"}
                   title={img?.image_type_scope === "public_image" ? "No editable en públicas" : "Editar commit"}
                 >
@@ -443,7 +448,7 @@ export default function ImageDetailsClient({
                         : `Sin commits guardados para ${img?.branch_version || "-"}`}
                 </div>
 
-                {!!img?.branch_version && !commitsLoading && !commitsErr && (
+                {!!img?.branch_version && !commitsLoading && !commitsErr && commits.length > 0 && (
                   <button
                     className="text-xs rounded-lg border border-white/15 bg-white/5 px-2 py-1 hover:bg-white/10"
                     onClick={() => loadCommits(String(img.branch_version), Math.min(200, (commitsLimit || 10) + 20))}
