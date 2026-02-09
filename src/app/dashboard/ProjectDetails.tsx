@@ -398,6 +398,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-white/90">{b.name}</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 text-white/50 bg-white/5">#{b.id}</span>
             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${b.branch_status === 'created' ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/40 bg-white/5'
               }`}>
               {b.branch_status || "UNKNOWN"}
