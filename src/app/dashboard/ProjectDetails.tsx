@@ -91,6 +91,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsErr, setLogsErr] = useState<string | null>(null);
   const [logsText, setLogsText] = useState<string>("");
+  const [logsAuto, setLogsAuto] = useState(true);
 
   const openConfirm = (msg: string, action: () => void | Promise<void>) => {
     setConfirmMsg(msg);
@@ -114,10 +115,15 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
-  async function loadBranchLogs(branchId: number) {
-    setLogsLoading(true);
-    setLogsErr(null);
-    setLogsText("");
+  async function loadBranchLogs(branchId: number, opts?: { silent?: boolean }) {
+    const silent = Boolean(opts?.silent);
+
+    if (!silent) {
+      setLogsLoading(true);
+      setLogsErr(null);
+      setLogsText("");
+    }
+
     try {
       const r = await fetch(`/api/satellite/branches/${branchId}/logs`, {
         method: "POST",
@@ -135,12 +141,14 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           : typeof j?.logs === "string"
             ? j.logs
             : "";
+
+      setLogsErr(null);
       setLogsText(logs);
     } catch (e: any) {
-      setLogsText("");
+      if (!silent) setLogsText("");
       setLogsErr(e?.message || "Error cargando logs");
     } finally {
-      setLogsLoading(false);
+      if (!silent) setLogsLoading(false);
     }
   }
 
@@ -251,6 +259,21 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return () => window.removeEventListener("lgd:branch:logs", handler as any);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-refresh logs while the modal is open
+  useEffect(() => {
+    if (!logsOpen) return;
+    const id = logsBranch?.id;
+    if (!id) return;
+    if (!logsAuto) return;
+
+    // Refresh every 5s (silent: no spinner, no clearing)
+    const t = window.setInterval(() => {
+      loadBranchLogs(id, { silent: true });
+    }, 5000);
+
+    return () => window.clearInterval(t);
+  }, [logsOpen, logsBranch?.id, logsAuto]);
 
   // ✅ cargar defaults cuando se abre el modal o cambia el tipo
   useEffect(() => {
@@ -740,13 +763,41 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         }
         centered
         className="dark-modal"
-        size="xl"
+        // Wider than xl; keeps some margin on large screens
+        size="90%"
         styles={{
           content: { backgroundColor: "#09090b", border: "1px solid rgba(255,255,255,0.1)" },
           header: { backgroundColor: "#09090b" },
           body: { backgroundColor: "#09090b" },
         }}
       >
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="text-[11px] font-mono text-white/40">
+            {logsLoading ? "Cargando…" : logsErr ? "Error" : logsAuto ? "Auto: ON (5s)" : "Auto: OFF"}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
+              onClick={() => setLogsAuto((v) => !v)}
+            >
+              {logsAuto ? "⏸ Auto" : "▶ Auto"}
+            </Button>
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
+              onClick={() => {
+                const id = logsBranch?.id;
+                if (id) loadBranchLogs(id);
+              }}
+            >
+              ↻ Refresh
+            </Button>
+          </div>
+        </div>
+
         {logsErr ? (
           <div className="text-sm text-red-200">{logsErr}</div>
         ) : logsLoading ? (
@@ -754,7 +805,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         ) : !logsText ? (
           <div className="text-sm text-white/60">(sin logs)</div>
         ) : (
-          <pre className="text-[11px] leading-5 text-white/80 whitespace-pre-wrap break-words max-h-[65vh] overflow-auto rounded-lg border border-white/10 bg-black/30 p-3">
+          <pre className="text-[11px] leading-5 text-white/80 whitespace-pre-wrap break-words max-h-[70vh] overflow-auto rounded-lg border border-white/10 bg-black/30 p-3">
             {logsText}
           </pre>
         )}
