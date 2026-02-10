@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react";
 const items = [
   { href: "/dashboard", label: "Proyectos", icon: "📁" },
   { href: "/dashboard/images", label: "Imágenes", icon: "🧱" },
+  { href: "/dashboard/licenses", label: "Licencias", icon: "🪪" },
 ];
 
 export default function Sidebar() {
