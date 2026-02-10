@@ -740,6 +740,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         }
         centered
         className="dark-modal"
+        size="xl"
         styles={{
           content: { backgroundColor: "#09090b", border: "1px solid rgba(255,255,255,0.1)" },
           header: { backgroundColor: "#09090b" },
