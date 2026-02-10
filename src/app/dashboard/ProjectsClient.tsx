@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProjectsGrid from "./ProjectsGrid";
 import ProjectDetails from "./ProjectDetails";
+import ProjectsLoading from "./ProjectsLoading";
 
 type M2O = false | [number, string];
 
@@ -19,7 +20,40 @@ type Project = {
   ssh_url?: string;
 };
 
-export default function ProjectsClient({ projects }: { projects: Project[] }) {
+export default function ProjectsClient({
+  githubId,
+  initialProjects,
+}: {
+  githubId: string;
+  initialProjects?: Project[];
+}) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>(initialProjects || []);
+
+  async function load() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/odoo/projects", {
+        headers: { "x-github-id": String(githubId) },
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+      setProjects(j.projects || []);
+    } catch (e: any) {
+      setProjects([]);
+      setErr(e?.message || "Error cargando proyectos");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [githubId]);
+
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   const selectedProject = useMemo(() => {
@@ -66,6 +100,26 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
   }
 
   // ✅ VISTA LISTA
+  if (loading && projects.length === 0) {
+    return <ProjectsLoading />;
+  }
+
+  if (err) {
+    return (
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
+        <div className="font-medium mb-1">No se pudo cargar proyectos</div>
+        <div className="text-white/60">{err}</div>
+        <button
+          className="mt-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
+          onClick={() => load()}
+          disabled={loading}
+        >
+          {loading ? "Cargando…" : "Reintentar"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <ProjectsGrid
       projects={projects}

@@ -19,29 +19,8 @@ export default async function Dashboard() {
     );
   }
 
-  const origin =
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    "http://localhost:3000";
-
-  const r = await fetch(`${origin}/api/odoo/projects`, {
-    // allow API caching headers
-    headers: { "x-github-id": String(githubId) },
-  });
-
-  const data = await r.json();
-  if (!r.ok || data?.ok === false) {
-    return (
-      <main className="min-h-screen p-6 text-white">
-        <pre className="text-xs whitespace-pre-wrap">
-          {JSON.stringify({ status: r.status, data }, null, 2)}
-        </pre>
-      </main>
-    );
-  }
-
-  const projects = data.projects ?? [];
-
+  // Render immediately, and let the client fetch projects so we can show a
+  // visible "Cargando…" state (especially on back navigation).
   return (
     <main className="min-h-screen p-6 text-white">
       <div className="max-w-6xl mx-auto">
@@ -50,8 +29,9 @@ export default async function Dashboard() {
           <Link className="text-sm underline text-white/80" href="/">Home</Link>
         </div>
 
-        <ProjectsClient projects={projects} />
+        <ProjectsClient githubId={String(githubId)} />
       </div>
     </main>
   );
 }
+
