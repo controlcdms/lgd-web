@@ -127,7 +127,15 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j?.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
-      setLogsText(String(j?.logs || ""));
+
+      // Backend returns JSON-RPC envelope (j.result.logs) but keep compatibility if it ever returns j.logs.
+      const logs =
+        typeof j?.result?.logs === "string"
+          ? j.result.logs
+          : typeof j?.logs === "string"
+            ? j.logs
+            : "";
+      setLogsText(logs);
     } catch (e: any) {
       setLogsText("");
       setLogsErr(e?.message || "Error cargando logs");
