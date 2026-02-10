@@ -529,27 +529,31 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
         {!isLocal ? (
           <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-            <Button
-              size="xs"
-              variant="default"
-              className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
-              loading={busy[b.id] === "start"}
-              disabled={isBusy(b.id)}
-              onClick={() => runAction(b.id, "start")}
-            >
-              ▶ Start
-            </Button>
+            {!isRunning ? (
+              <Button
+                size="xs"
+                variant="default"
+                className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
+                loading={busy[b.id] === "start"}
+                disabled={isBusy(b.id)}
+                onClick={() => runAction(b.id, "start")}
+              >
+                ▶ Start
+              </Button>
+            ) : null}
 
-            <Button
-              size="xs"
-              variant="default"
-              className="bg-black/20 hover:bg-yellow-900/40 hover:text-yellow-200 border-white/10"
-              loading={busy[b.id] === "stop"}
-              disabled={isBusy(b.id)}
-              onClick={() => runAction(b.id, "stop")}
-            >
-              ⏸ Stop
-            </Button>
+            {isRunning ? (
+              <Button
+                size="xs"
+                variant="default"
+                className="bg-black/20 hover:bg-yellow-900/40 hover:text-yellow-200 border-white/10"
+                loading={busy[b.id] === "stop"}
+                disabled={isBusy(b.id)}
+                onClick={() => runAction(b.id, "stop")}
+              >
+                ⏸ Stop
+              </Button>
+            ) : null}
 
             <Button
               size="xs"
