@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import { odooSearchRead } from "@/lib/odoo";
 
-function toBaseUrl(urlWebhookAlternative: string) {
-  const s = String(urlWebhookAlternative || "").trim();
-  if (!s) return "";
-  if (/^https?:\/\//i.test(s)) return s.replace(/\/$/, "");
-  return `https://${s}`.replace(/\/$/, "");
+function cleanBaseUrl(url: string) {
+  const s = String(url || "").trim().replace(/\/+$/, "");
+  return s;
 }
 
 export async function GET(
@@ -18,38 +15,12 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "Invalid container id" }, { status: 400 });
   }
 
-  // Resolve the Odoo base url from the remote server (resource_deploy_id.url_webhook_alternative)
-  // so we don't depend on the Next deployment env.
-  const containers = await odooSearchRead(
-    "container.deploy",
-    [["id", "=", id]],
-    ["id", "resource_deploy_id"],
-    1
-  );
-  const c = containers?.[0] || null;
-  const resourceId = Array.isArray(c?.resource_deploy_id) ? c.resource_deploy_id[0] : null;
-  if (!resourceId) {
-    return NextResponse.json(
-      { ok: false, error: "container has no resource_deploy_id" },
-      { status: 404 }
-    );
-  }
-
-  const resources = await odooSearchRead(
-    "server.resource",
-    [["id", "=", resourceId]],
-    ["id", "url_webhook_alternative"],
-    1
-  );
-  const r = resources?.[0] || null;
-  const base = toBaseUrl(r?.url_webhook_alternative);
+  const base = cleanBaseUrl(process.env.ODOO_URL || "");
   if (!base) {
-    return NextResponse.json(
-      { ok: false, error: "resource missing url_webhook_alternative", resourceId },
-      { status: 404 }
-    );
+    return NextResponse.json({ ok: false, error: "Missing ODOO_URL env" }, { status: 500 });
   }
 
+  // Open the container in the Odoo panel (form view)
   const url = `${base}/web#id=${id}&model=container.deploy&view_type=form`;
   return NextResponse.redirect(url);
 }
