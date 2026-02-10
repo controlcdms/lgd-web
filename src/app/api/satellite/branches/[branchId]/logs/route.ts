@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ branch
     // Ask the PANEL to proxy satellite logs using server.resource.token_server.
     // This avoids exposing/handling satellite bearer tokens in the Next UI.
     const cookie = await odooLoginCookie();
-    const r = await fetch(`${process.env.ODOO_URL}/api/satellite/stack/logs`, {
+    const r = await fetch(`${process.env.ODOO_URL_INTERNAL || process.env.ODOO_URL}/api/satellite/stack/logs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({

@@ -15,12 +15,12 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "Invalid container id" }, { status: 400 });
   }
 
-  const base = cleanBaseUrl(process.env.ODOO_URL || "");
+  // This redirect is opened in the user's browser, so it must use the PUBLIC panel URL.
+  const base = cleanBaseUrl(process.env.ODOO_URL_PUBLIC || process.env.ODOO_URL || "");
   if (!base) {
-    return NextResponse.json({ ok: false, error: "Missing ODOO_URL env" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Missing ODOO_URL_PUBLIC (or ODOO_URL) env" }, { status: 500 });
   }
 
-  // Open the container in the Odoo panel (form view)
   const url = `${base}/web#id=${id}&model=container.deploy&view_type=form`;
   return NextResponse.redirect(url);
 }

@@ -1,6 +1,8 @@
 // Helper: login to Odoo and return just the cookie for non-JSONRPC endpoints.
 
-const ODOO_URL = process.env.ODOO_URL!;
+import { odooUrlInternal } from "@/lib/odoo-urls";
+
+const ODOO_URL = odooUrlInternal();
 const ODOO_DB = process.env.ODOO_DB!;
 const ODOO_LOGIN = process.env.ODOO_USER!;
 const ODOO_PASSWORD = process.env.ODOO_PASS!;
