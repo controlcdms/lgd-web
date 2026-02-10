@@ -85,6 +85,13 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [commitsErr, setCommitsErr] = useState<string | null>(null);
   const [commitsRows, setCommitsRows] = useState<any[]>([]);
 
+  // logs modal
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logsBranch, setLogsBranch] = useState<{ id: number; name: string } | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsErr, setLogsErr] = useState<string | null>(null);
+  const [logsText, setLogsText] = useState<string>("");
+
   const openConfirm = (msg: string, action: () => void | Promise<void>) => {
     setConfirmMsg(msg);
     setConfirmAction(() => action);
@@ -104,6 +111,28 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       setCommitsErr(e?.message || "Error cargando commits");
     } finally {
       setCommitsLoading(false);
+    }
+  }
+
+  async function loadBranchLogs(branchId: number) {
+    setLogsLoading(true);
+    setLogsErr(null);
+    setLogsText("");
+    try {
+      const r = await fetch(`/api/satellite/branches/${branchId}/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ service: "odoo", tail: 400 }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j?.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
+      setLogsText(String(j?.logs || ""));
+    } catch (e: any) {
+      setLogsText("");
+      setLogsErr(e?.message || "Error cargando logs");
+    } finally {
+      setLogsLoading(false);
     }
   }
 
@@ -196,6 +225,22 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     };
     window.addEventListener("lgd:branch:commits", handler as any);
     return () => window.removeEventListener("lgd:branch:commits", handler as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Listen for logs button
+  useEffect(() => {
+    const handler = (ev: any) => {
+      const detail = ev?.detail || {};
+      const branchId = Number(detail.branchId);
+      if (!Number.isFinite(branchId)) return;
+      const branchName = String(detail.branchName || "").trim() || `#${branchId}`;
+      setLogsBranch({ id: branchId, name: branchName });
+      setLogsOpen(true);
+      loadBranchLogs(branchId);
+    };
+    window.addEventListener("lgd:branch:logs", handler as any);
+    return () => window.removeEventListener("lgd:branch:logs", handler as any);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -495,13 +540,13 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               size="xs"
               variant="default"
               className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
-              disabled={isBusy(b.id) || !Array.isArray(b.container_id) || !b.container_id[0]}
+              disabled={isBusy(b.id)}
               onClick={() => {
-                const cid = Array.isArray(b.container_id) ? b.container_id[0] : null;
-                if (!cid) return;
-                window.open(`/api/odoo/containers/${cid}/open`, "_blank", "noopener,noreferrer");
+                window.dispatchEvent(
+                  new CustomEvent("lgd:branch:logs", { detail: { branchId: b.id, branchName: b.name } })
+                );
               }}
-              title="Abrir contenedor en Odoo (ver logs)"
+              title="Ver logs del stack (satélite)"
             >
               📜 Logs
             </Button>
@@ -674,6 +719,35 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               </div>
             ))}
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        opened={logsOpen}
+        onClose={() => setLogsOpen(false)}
+        title={
+          <span className="font-mono text-sm uppercase tracking-widest text-white/70">
+            Logs{logsBranch ? ` · ${logsBranch.name}` : ""}
+          </span>
+        }
+        centered
+        className="dark-modal"
+        styles={{
+          content: { backgroundColor: "#09090b", border: "1px solid rgba(255,255,255,0.1)" },
+          header: { backgroundColor: "#09090b" },
+          body: { backgroundColor: "#09090b" },
+        }}
+      >
+        {logsErr ? (
+          <div className="text-sm text-red-200">{logsErr}</div>
+        ) : logsLoading ? (
+          <div className="text-sm text-white/60">Cargando logs...</div>
+        ) : !logsText ? (
+          <div className="text-sm text-white/60">(sin logs)</div>
+        ) : (
+          <pre className="text-[11px] leading-5 text-white/80 whitespace-pre-wrap break-words max-h-[65vh] overflow-auto rounded-lg border border-white/10 bg-black/30 p-3">
+            {logsText}
+          </pre>
         )}
       </Modal>
 

@@ -4,6 +4,7 @@ export type SatConfig = {
   stack: string;
   baseUrl: string;
   token: string;
+  resourceId: number;
 };
 
 function cleanBaseUrl(url: string) {
@@ -49,7 +50,7 @@ export async function getSatConfigFromBranch(branchId: number): Promise<SatConfi
   if (!baseUrl) throw new Error("server.resource.url_webhook_alternative missing");
   if (!token) throw new Error("server.resource.token_server missing");
 
-  return { stack, baseUrl, token };
+  return { stack, baseUrl, token, resourceId };
 }
 
 export async function satFetchJson(config: SatConfig, path: string, body: any) {
