@@ -422,7 +422,20 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
 
+      // The backend action can be async (stop/start may take a bit).
+      // Refresh immediately, then keep refreshing for a short period so the UI updates.
       reload();
+      if (action === "start" || action === "stop") {
+        const startedAt = Date.now();
+        const t = window.setInterval(() => {
+          // stop after ~30s
+          if (Date.now() - startedAt > 30000) {
+            window.clearInterval(t);
+            return;
+          }
+          reload();
+        }, 2000);
+      }
     } catch (e: any) {
       setError(e?.message || "Error ejecutando acción");
     } finally {
