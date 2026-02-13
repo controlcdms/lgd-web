@@ -25,6 +25,7 @@ type Branch = {
   other_server_docker_image?: string | null;
   jenkins_url_html?: string | null;
   instructions_dev?: string | null;
+  server_url_nginx?: string | null;
 };
 
 type DeployType =
@@ -473,6 +474,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
   const renderBranchCard = (b: Branch) => {
     const isRunning = b.container_status === "running";
+    const rawUrl = String(b.server_url_nginx || "").trim();
+    const appUrl = rawUrl ? (rawUrl.match(/^https?:\/\//i) ? rawUrl : `https://${rawUrl}`) : "";
     // Local branches should not have start/stop/kill buttons.
     // Some legacy data uses type_deploy=="local" instead of "local_deploy".
     const isLocal = b.type_deploy === "local_deploy" || b.type_deploy === "local";
@@ -565,6 +568,21 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                 onClick={() => runAction(b.id, "stop")}
               >
                 ⏸ Stop
+              </Button>
+            ) : null}
+
+            {appUrl ? (
+              <Button
+                size="xs"
+                variant="default"
+                className="bg-black/20 hover:bg-sky-900/40 hover:text-sky-100 border-white/10"
+                component="a"
+                href={appUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={appUrl}
+              >
+                🌐 Abrir
               </Button>
             ) : null}
 
