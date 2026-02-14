@@ -475,7 +475,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const renderBranchCard = (b: Branch) => {
     const isRunning = b.container_status === "running";
     const rawUrl = String(b.server_url_nginx || "").trim();
-    const appUrl = rawUrl ? (rawUrl.match(/^https?:\/\//i) ? rawUrl : `https://${rawUrl}`) : "";
+    // Force http always (SSL/protocol switch will be manual later)
+    const appUrl = rawUrl ? `http://${rawUrl.replace(/^https?:\/\//i, "")}` : "";
     // Local branches should not have start/stop/kill buttons.
     // Some legacy data uses type_deploy=="local" instead of "local_deploy".
     const isLocal = b.type_deploy === "local_deploy" || b.type_deploy === "local";
