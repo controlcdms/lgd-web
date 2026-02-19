@@ -11,6 +11,12 @@ const items = [
   { href: "/dashboard/licenses", label: "Licencias", icon: "🪪" },
 ];
 
+function withLocalePrefix(pathname: string, href: string) {
+  const m = pathname.match(/^\/(en|es)(\/|$)/);
+  const locale = m?.[1];
+  return locale ? `/${locale}${href}` : href;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -64,16 +70,16 @@ export default function Sidebar() {
 
       <nav className="px-3 py-2 flex-1 space-y-1">
         {items.map((it) => {
-          const active =
-            pathname === it.href || pathname.startsWith(it.href + "/");
+          const href = withLocalePrefix(pathname, it.href);
+          const active = pathname === href || pathname.startsWith(href + "/");
 
           return (
             <Link
               key={it.href}
-              href={it.href}
+              href={href}
               onClick={() => {
                 try {
-                  window.dispatchEvent(new CustomEvent("lgd:navigate", { detail: { href: it.href } }));
+                  window.dispatchEvent(new CustomEvent("lgd:navigate", { detail: { href } }));
                 } catch {
                   // ignore
                 }
