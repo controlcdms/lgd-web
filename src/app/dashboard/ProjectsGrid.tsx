@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type M2O = false | [number, string];
@@ -33,11 +33,13 @@ export default function ProjectsGrid({
   selectedProjectId,
   onSelectProject,
   onCreated,
+  onVisibleRepoIds,
 }: {
   projects: Project[];
   selectedProjectId: number | null;
   onSelectProject?: (projectId: number) => void;
   onCreated?: (newProjectId?: number) => void; // refresca lista desde el padre; opcionalmente selecciona
+  onVisibleRepoIds?: (repoIds: number[]) => void; // for async enrichment
 }) {
   const [q, setQ] = useState("");
   const router = useRouter();
@@ -61,11 +63,60 @@ export default function ProjectsGrid({
       const owner = (Array.isArray(p.owner_id) ? p.owner_id[1] : "").toLowerCase();
       const user = (Array.isArray(p.user_id) ? p.user_id[1] : "").toLowerCase();
       const url = (p.html_url || "").toLowerCase();
-      return (
-        repo.includes(s) || owner.includes(s) || user.includes(s) || url.includes(s)
-      );
+      return repo.includes(s) || owner.includes(s) || user.includes(s) || url.includes(s);
     });
   }, [q, projects]);
+
+  // Track which cards are visible so the parent can request async enrichment only for those.
+  const ioRef = useRef<IntersectionObserver | null>(null);
+  const elToIdRef = useRef<WeakMap<Element, number>>(new WeakMap());
+
+  useEffect(() => {
+    if (!onVisibleRepoIds) return;
+
+    // If we already have an observer (e.g. hot reload), disconnect first.
+    ioRef.current?.disconnect();
+
+    let pendingIds = new Set<number>();
+    let t: any = null;
+
+    const flush = () => {
+      if (!pendingIds.size) return;
+      const ids = Array.from(pendingIds);
+      pendingIds = new Set<number>();
+      onVisibleRepoIds(ids);
+    };
+
+    ioRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = elToIdRef.current.get(e.target);
+          if (!id) continue;
+          pendingIds.add(id);
+        }
+        if (pendingIds.size) {
+          if (t) clearTimeout(t);
+          t = setTimeout(flush, 150);
+        }
+      },
+      { root: null, threshold: 0.05 }
+    );
+
+    return () => {
+      if (t) clearTimeout(t);
+      ioRef.current?.disconnect();
+      ioRef.current = null;
+    };
+  }, [onVisibleRepoIds]);
+
+  const observeCard = (el: HTMLDivElement | null, repoId: number) => {
+    if (!el) return;
+    if (!onVisibleRepoIds) return;
+    if (!ioRef.current) return;
+    elToIdRef.current.set(el, repoId);
+    ioRef.current.observe(el);
+  };
 
   async function loadTemplates() {
     setLoadingTemplates(true);
@@ -256,6 +307,7 @@ export default function ProjectsGrid({
             return (
               <div
                 key={p.id}
+                ref={(el) => observeCard(el, p.id)}
                 onClick={() => onSelectProject?.(p.id)}
                 className={`
                   group relative cursor-pointer overflow-hidden rounded-xl border p-5 transition-all duration-300

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ProjectsGrid from "./ProjectsGrid";
 import ProjectDetails from "./ProjectDetails";
 import ProjectsLoading from "./ProjectsLoading";
@@ -31,6 +31,58 @@ export default function ProjectsClient({
   const [err, setErr] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>(initialProjects || []);
 
+  // Summary cache + dedupe (in-memory) to avoid repeated enrichment calls.
+  const summaryLoadedRef = useRef<Set<number>>(new Set());
+  const summaryInflightRef = useRef<Set<number>>(new Set());
+  const summaryQueueRef = useRef<Set<number>>(new Set());
+  const summaryTimerRef = useRef<any>(null);
+
+  const requestSummary = (repoIds: number[]) => {
+    const ids = (repoIds || []).map(Number).filter((x) => Number.isFinite(x));
+    for (const id of ids) {
+      if (summaryLoadedRef.current.has(id)) continue;
+      if (summaryInflightRef.current.has(id)) continue;
+      summaryQueueRef.current.add(id);
+    }
+
+    if (summaryTimerRef.current) clearTimeout(summaryTimerRef.current);
+    summaryTimerRef.current = setTimeout(async () => {
+      const batch = Array.from(summaryQueueRef.current);
+      summaryQueueRef.current = new Set();
+      if (!batch.length) return;
+
+      // Guardrail: avoid huge batches.
+      const limited = batch.slice(0, 120);
+      limited.forEach((id) => summaryInflightRef.current.add(id));
+
+      try {
+        const rr = await fetch("/api/odoo/projects/summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repoIds: limited }),
+        });
+        const jj = await rr.json().catch(() => ({}));
+        if (!rr.ok || !jj?.ok) return;
+
+        const map = jj.summaryByRepoId || {};
+        limited.forEach((id) => {
+          summaryInflightRef.current.delete(id);
+          if (map[String(id)]) summaryLoadedRef.current.add(id);
+        });
+
+        setProjects((prev) =>
+          prev.map((p) => {
+            const s = map[String(p.id)];
+            if (!s) return p;
+            return { ...p, ...s } as any;
+          })
+        );
+      } catch {
+        limited.forEach((id) => summaryInflightRef.current.delete(id));
+      }
+    }, 200);
+  };
+
   async function load() {
     setLoading(true);
     setErr(null);
@@ -44,35 +96,14 @@ export default function ProjectsClient({
       const baseProjects = (j.projects || []) as Project[];
       setProjects(baseProjects);
 
-      // Enrich in background (does not block initial render)
-      // IMPORTANT: only enrich the "visible" batch (top of list) to keep it fast.
-      const repoIds = baseProjects
-        .map((p) => p.id)
-        .filter((x) => Number.isFinite(x))
-        .slice(0, 40);
+      // Enrich will be requested on-demand as cards become visible (IntersectionObserver in ProjectsGrid).
+      // We keep an optional small warm-up here to make the first paint look complete quickly.
+      // Reset per-load caches (new user / refresh)
+      summaryLoadedRef.current = new Set();
+      summaryInflightRef.current = new Set();
+      summaryQueueRef.current = new Set();
 
-      if (repoIds.length) {
-        fetch("/api/odoo/projects/summary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ repoIds }),
-        })
-          .then((rr) => rr.json().catch(() => ({})))
-          .then((jj) => {
-            if (!jj?.ok) return;
-            const map = jj.summaryByRepoId || {};
-            setProjects((prev) =>
-              prev.map((p) => {
-                const s = map[String(p.id)];
-                if (!s) return p;
-                return { ...p, ...s } as any;
-              })
-            );
-          })
-          .catch(() => {
-            // ignore enrichment errors
-          });
-      }
+      requestSummary(baseProjects.map((p) => p.id).slice(0, 12));
     } catch (e: any) {
       setProjects([]);
       setErr(e?.message || "Error cargando proyectos");
@@ -160,6 +191,7 @@ export default function ProjectsClient({
       onCreated={(newId) => {
         if (newId) setSelectedProjectId(newId);
       }}
+      onVisibleRepoIds={(ids) => requestSummary(ids)}
     />
   );
 }
