@@ -45,7 +45,12 @@ export default function ProjectsClient({
       setProjects(baseProjects);
 
       // Enrich in background (does not block initial render)
-      const repoIds = baseProjects.map((p) => p.id).filter((x) => Number.isFinite(x));
+      // IMPORTANT: only enrich the "visible" batch (top of list) to keep it fast.
+      const repoIds = baseProjects
+        .map((p) => p.id)
+        .filter((x) => Number.isFinite(x))
+        .slice(0, 40);
+
       if (repoIds.length) {
         fetch("/api/odoo/projects/summary", {
           method: "POST",
