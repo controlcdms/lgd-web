@@ -2,6 +2,16 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Dev UX
+
+To hide the Next.js dev indicator badge (the small "N" shown in the corner during development), set:
+
+```bash
+NEXT_DISABLE_DEV_INDICATOR=1
+```
+
+Add it to your `.env.local`.
+
 First, run the development server:
 
 ```bash
