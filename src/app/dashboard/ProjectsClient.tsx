@@ -40,7 +40,34 @@ export default function ProjectsClient({
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
-      setProjects(j.projects || []);
+
+      const baseProjects = (j.projects || []) as Project[];
+      setProjects(baseProjects);
+
+      // Enrich in background (does not block initial render)
+      const repoIds = baseProjects.map((p) => p.id).filter((x) => Number.isFinite(x));
+      if (repoIds.length) {
+        fetch("/api/odoo/projects/summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repoIds }),
+        })
+          .then((rr) => rr.json().catch(() => ({})))
+          .then((jj) => {
+            if (!jj?.ok) return;
+            const map = jj.summaryByRepoId || {};
+            setProjects((prev) =>
+              prev.map((p) => {
+                const s = map[String(p.id)];
+                if (!s) return p;
+                return { ...p, ...s } as any;
+              })
+            );
+          })
+          .catch(() => {
+            // ignore enrichment errors
+          });
+      }
     } catch (e: any) {
       setProjects([]);
       setErr(e?.message || "Error cargando proyectos");
