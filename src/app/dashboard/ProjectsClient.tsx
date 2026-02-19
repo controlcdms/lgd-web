@@ -129,6 +129,17 @@ export default function ProjectsClient({
     }
   }, [pathname]);
 
+  // Sidebar navigation (e.g., clicking "Proyectos" while already on /dashboard)
+  useEffect(() => {
+    const handler = (ev: any) => {
+      const href = String(ev?.detail?.href || "");
+      if (href === "/dashboard") setSelectedProjectId(null);
+    };
+    window.addEventListener("lgd:navigate", handler as any);
+    return () => window.removeEventListener("lgd:navigate", handler as any);
+  }, []);
+
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find((p) => p.id === selectedProjectId) || null;

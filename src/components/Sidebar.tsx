@@ -71,6 +71,13 @@ export default function Sidebar() {
             <Link
               key={it.href}
               href={it.href}
+              onClick={() => {
+                try {
+                  window.dispatchEvent(new CustomEvent("lgd:navigate", { detail: { href: it.href } }));
+                } catch {
+                  // ignore
+                }
+              }}
               className={[
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
                 active
