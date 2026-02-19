@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import ProjectsGrid from "./ProjectsGrid";
 import ProjectDetails from "./ProjectDetails";
 import ProjectsLoading from "./ProjectsLoading";
@@ -118,6 +119,15 @@ export default function ProjectsClient({
   }, [githubId]);
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+
+  // If user navigates back to the dashboard (e.g., clicks Projects in sidebar),
+  // exit details view and show the cards grid.
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname === "/dashboard") {
+      setSelectedProjectId(null);
+    }
+  }, [pathname]);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
