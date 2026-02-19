@@ -10,11 +10,23 @@
   },
   "images": {
     "title": "Imágenes de Docker",
-    "new": "Nueva imagen"
+    "subtitle": "Tus templates / imágenes base",
+    "new": "Nueva imagen",
+    "refresh": "Refrescar",
+    "searchPlaceholder": "Buscar imagen..."
+  },
+  "licenses": {
+    "title": "Licencias",
+    "subtitle": "Compra y administra tus licencias mensuales. (MVP: transferencia bancaria)",
+    "statusTitle": "Estado",
+    "statusHint": "Próximamente verás aquí: total / en uso / disponibles por tipo.",
+    "buy1m": "Comprar 1 mes",
+    "renew": "Renovar"
   },
   "common": {
     "home": "Inicio",
     "back": "Volver",
-    "publish": "Publicar"
+    "publish": "Publicar",
+    "creating": "Creando…"
   }
 }

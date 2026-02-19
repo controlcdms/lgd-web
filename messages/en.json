@@ -10,11 +10,23 @@
   },
   "images": {
     "title": "Docker Images",
-    "new": "New Image"
+    "subtitle": "Your templates / base images",
+    "new": "New Image",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search image..."
+  },
+  "licenses": {
+    "title": "Licenses",
+    "subtitle": "Buy and manage your monthly licenses. (MVP: bank transfer)",
+    "statusTitle": "Status",
+    "statusHint": "Soon you'll see: total / in use / available by type.",
+    "buy1m": "Buy 1 month",
+    "renew": "Renew"
   },
   "common": {
     "home": "Home",
     "back": "Back",
-    "publish": "Publish"
+    "publish": "Publish",
+    "creating": "Creating…"
   }
 }

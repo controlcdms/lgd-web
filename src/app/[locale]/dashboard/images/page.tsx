@@ -1,3 +1,9 @@
-import ImagesPage from "@/app/dashboard/images/page";
+import ImagesClient from "@/app/dashboard/images/ImagesClient";
 
-export default ImagesPage;
+export default function ImagesPage() {
+  return (
+    <div className="p-6">
+      <ImagesClient />
+    </div>
+  );
+}

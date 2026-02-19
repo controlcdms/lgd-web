@@ -1,3 +1,5 @@
-import LicensesPage from "@/app/dashboard/licenses/page";
+import LicensesClient from "@/app/dashboard/licenses/LicensesClient";
 
-export default LicensesPage;
+export default function LicensesPage() {
+  return <LicensesClient />;
+}

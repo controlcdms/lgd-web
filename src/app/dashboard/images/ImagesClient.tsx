@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import CreateImageModal from "./CreateImageModal";
 import CreateTagModal from "./CreateTagModal";
 
@@ -24,6 +25,8 @@ type ImageRow = {
 
 export default function ImagesClient() {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations();
 
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -97,15 +100,15 @@ export default function ImagesClient() {
   };
 
   function goDetail(id: number) {
-    router.push(`/dashboard/images/${id}`);
+    router.push(`/${locale}/dashboard/images/${id}`);
   }
 
   return (
     <div className="text-white">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Imágenes de Docker</h1>
-          <div className="text-white/60 mt-1">Tus templates / imágenes base</div>
+          <h1 className="text-2xl font-semibold">{t("images.title")}</h1>
+          <div className="text-white/60 mt-1">{t("images.subtitle")}</div>
         </div>
 
         <div className="flex gap-2">
@@ -113,7 +116,7 @@ export default function ImagesClient() {
             className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
             onClick={() => load()}
             disabled={loading}
-            title="Refrescar"
+            title={t("images.refresh")}
           >
             {loading ? "..." : "↻"}
           </button>
@@ -122,7 +125,7 @@ export default function ImagesClient() {
             className="rounded-xl bg-green-600 px-3 py-2 text-sm hover:bg-green-500"
             onClick={() => setShowNewImage(true)}
           >
-            + Nueva imagen
+            + {t("images.new")}
           </button>
         </div>
       </div>
@@ -150,7 +153,7 @@ export default function ImagesClient() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar imagen..."
+          placeholder={t("images.searchPlaceholder")}
           className="w-full max-w-xl rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none"
         />
         <div className="text-xs text-white/60">

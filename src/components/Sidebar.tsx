@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
 const items = [
-  { href: "/dashboard", label: "Proyectos", icon: "📁" },
-  { href: "/dashboard/images", label: "Imágenes", icon: "🧱" },
-  { href: "/dashboard/licenses", label: "Licencias", icon: "🪪" },
-];
+  { href: "/dashboard", key: "nav.projects", icon: "📁" },
+  { href: "/dashboard/images", key: "nav.images", icon: "🧱" },
+  { href: "/dashboard/licenses", key: "nav.licenses", icon: "🪪" },
+] as const;
 
 function withLocalePrefix(pathname: string, href: string) {
   const m = pathname.match(/^\/(en|es)(\/|$)/);
@@ -19,6 +20,7 @@ function withLocalePrefix(pathname: string, href: string) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations();
 
   const [token, setToken] = useState<string | null>(null);
   const [tokenErr, setTokenErr] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function Sidebar() {
               ].join(" ")}
             >
               <span className={`text-base transition-transform group-hover:scale-110 ${active ? 'grayscale-0' : 'grayscale opacity-70'}`}>{it.icon}</span>
-              <span className="font-medium">{it.label}</span>
+              <span className="font-medium">{t(it.key)}</span>
               {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>}
             </Link>
           );

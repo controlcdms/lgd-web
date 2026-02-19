@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+
+export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import ProjectsClient from "./ProjectsClient";
