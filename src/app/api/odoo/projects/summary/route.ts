@@ -5,10 +5,19 @@ import { odooSearchRead } from "@/lib/odoo";
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const repoIds = Array.isArray(body?.repoIds) ? body.repoIds.map(Number).filter(Number.isFinite) : [];
+    const repoIdsRaw = Array.isArray(body?.repoIds) ? body.repoIds : [];
+    const repoIds = Array.from(new Set(repoIdsRaw.map(Number).filter(Number.isFinite)));
 
     if (!repoIds.length) {
       return NextResponse.json({ ok: true, summaryByRepoId: {} });
+    }
+
+    // Guardrails: avoid accidental/abusive huge requests.
+    if (repoIds.length > 200) {
+      return NextResponse.json(
+        { ok: false, error: `Too many repoIds (${repoIds.length}). Max 200.` },
+        { status: 400 }
+      );
     }
 
     // Find production branch per repo
@@ -22,7 +31,7 @@ export async function POST(req: Request) {
         ["name", "=", "production"],
       ],
       ["id", "repository_id", "name", "type_deploy", "container_id", "container_status"],
-      200,
+      Math.min(200, repoIds.length * 2),
       0,
       "id desc"
     );
