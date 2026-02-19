@@ -130,7 +130,7 @@ export default function ImageDetailsClient({
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch(`/api/odoo/images/${imageId}`, { cache: "no-store" });
+      const r = await fetch(`/api/odoo/images/${imageId}`);
       const txt = await r.text();
       const j = safeParseJson(txt);
 
@@ -177,9 +177,20 @@ export default function ImageDetailsClient({
   useEffect(() => {
     if (!imageId) return;
     load();
-    loadReleases();
+    // Releases can be heavy; load only when user opens the History tab.
+    if (isHistory) loadReleases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageId]);
+
+  // When switching to History tab, fetch releases on-demand.
+  useEffect(() => {
+    if (!imageId) return;
+    if (!isHistory) return;
+    if (releasesLoading) return;
+    if (releases.length) return;
+    loadReleases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHistory, imageId]);
 
   const badgeType = (t?: string) => {
     if (t === "public_image") return "Pública";
