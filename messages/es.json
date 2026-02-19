@@ -1,15 +1,20 @@
 {
-  "nav.projects": "Proyectos",
-  "nav.images": "Imágenes",
-  "nav.licenses": "Licencias",
-
-  "projects.title": "Panel LGD",
-  "projects.new": "Nuevo proyecto",
-
-  "images.title": "Imágenes de Docker",
-  "images.new": "Nueva imagen",
-
-  "common.home": "Inicio",
-  "common.back": "Volver",
-  "common.publish": "Publicar"
+  "nav": {
+    "projects": "Proyectos",
+    "images": "Imágenes",
+    "licenses": "Licencias"
+  },
+  "projects": {
+    "title": "Panel LGD",
+    "new": "Nuevo proyecto"
+  },
+  "images": {
+    "title": "Imágenes de Docker",
+    "new": "Nueva imagen"
+  },
+  "common": {
+    "home": "Inicio",
+    "back": "Volver",
+    "publish": "Publicar"
+  }
 }

@@ -1,15 +1,20 @@
 {
-  "nav.projects": "Projects",
-  "nav.images": "Images",
-  "nav.licenses": "Licenses",
-
-  "projects.title": "LGD Dashboard",
-  "projects.new": "New Project",
-
-  "images.title": "Docker Images",
-  "images.new": "New Image",
-
-  "common.home": "Home",
-  "common.back": "Back",
-  "common.publish": "Publish"
+  "nav": {
+    "projects": "Projects",
+    "images": "Images",
+    "licenses": "Licenses"
+  },
+  "projects": {
+    "title": "LGD Dashboard",
+    "new": "New Project"
+  },
+  "images": {
+    "title": "Docker Images",
+    "new": "New Image"
+  },
+  "common": {
+    "home": "Home",
+    "back": "Back",
+    "publish": "Publish"
+  }
 }
