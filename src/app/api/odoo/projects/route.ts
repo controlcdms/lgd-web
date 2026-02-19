@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function GET(req: Request) {
+  const t0 = Date.now();
   try {
     const url = new URL(req.url);
 
@@ -38,12 +39,14 @@ export async function GET(req: Request) {
       }
     }
 
+    const tUsers0 = Date.now();
     const usersByUid = await odooSearchRead(
       "res.users",
       [["oauth_uid", "=", String(githubId)]],
       ["id", "login", "oauth_uid"],
       1
     );
+    const tUsersMs = Date.now() - tUsers0;
 
     const odooUserId = usersByUid?.[0]?.id ?? null;
     if (!odooUserId) {
@@ -53,6 +56,7 @@ export async function GET(req: Request) {
       );
     }
 
+    const tRepos0 = Date.now();
     const projects = await odooSearchRead(
       "server.repos",
       ["|", ["user_id", "=", odooUserId], ["owner_id", "=", odooUserId]],
@@ -73,12 +77,20 @@ export async function GET(req: Request) {
       ],
       200
     );
+    const tReposMs = Date.now() - tRepos0;
 
     // NOTE: keep this endpoint FAST.
     // Any expensive enrichment (production branch/container/release) must be done in a separate endpoint.
 
     const res = NextResponse.json({ ok: true, githubId, odooUserId, projects });
     res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+
+    const totalMs = Date.now() - t0;
+    // Server-Timing for quick perf inspection in browser DevTools
+    res.headers.set(
+      "Server-Timing",
+      `odoo_users;dur=${tUsersMs}, odoo_repos;dur=${tReposMs}, total;dur=${totalMs}`
+    );
     return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });

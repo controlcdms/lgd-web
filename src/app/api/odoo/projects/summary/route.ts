@@ -3,6 +3,7 @@ import { odooSearchRead } from "@/lib/odoo";
 
 // POST { repoIds: number[] }
 export async function POST(req: Request) {
+  const t0 = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
     const repoIdsRaw = Array.isArray(body?.repoIds) ? body.repoIds : [];
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
     }
 
     // Find production branch per repo
+    const tBranches0 = Date.now();
     const prodBranches = await odooSearchRead(
       "server.branches",
       [
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
       0,
       "id desc"
     );
+    const tBranchesMs = Date.now() - tBranches0;
 
     const prodBranchByRepo: Record<string, any> = {};
     for (const b of prodBranches || []) {
@@ -47,6 +50,7 @@ export async function POST(req: Request) {
       .map((b: any) => (Array.isArray(b?.container_id) ? b.container_id[0] : null))
       .filter((x: any) => Number.isFinite(x));
 
+    const tContainers0 = Date.now();
     let containersById: Record<string, any> = {};
     if (prodContainerIds.length) {
       const containers = await odooSearchRead(
@@ -59,6 +63,7 @@ export async function POST(req: Request) {
       );
       for (const c of containers || []) containersById[String(c.id)] = c;
     }
+    const tContainersMs = Date.now() - tContainers0;
 
     const summaryByRepoId: Record<string, any> = {};
     for (const rid of repoIds) {
@@ -82,6 +87,12 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({ ok: true, summaryByRepoId });
     res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+
+    const totalMs = Date.now() - t0;
+    res.headers.set(
+      "Server-Timing",
+      `odoo_branches;dur=${tBranchesMs}, odoo_containers;dur=${tContainersMs}, total;dur=${totalMs}`
+    );
     return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
