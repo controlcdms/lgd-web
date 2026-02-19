@@ -207,16 +207,32 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     setLoading(true);
     setError(null);
 
+    // Fast load first (no container enrichment). Enrichment is requested in background.
     fetch(`/api/odoo/projects/${projectId}/branches`, {
       signal: controller.signal,
-      cache: "no-store",
     })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
         return d;
       })
-      .then((d) => setBranches(d?.branches || []))
+      .then((d) => {
+        const base = d?.branches || [];
+        setBranches(base);
+
+        // Background enrich (release/image) without blocking UI
+        fetch(`/api/odoo/projects/${projectId}/branches?enrich=1`, {
+          cache: "no-store",
+        })
+          .then((rr) => rr.json().catch(() => ({})))
+          .then((dd) => {
+            if (!dd?.ok || !Array.isArray(dd?.branches)) return;
+            setBranches(dd.branches);
+          })
+          .catch(() => {
+            // ignore enrich errors
+          });
+      })
       .catch((e) => {
         if (e?.name === "AbortError") return;
         setBranches([]);

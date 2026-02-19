@@ -2,19 +2,22 @@ import { NextResponse } from "next/server";
 import { odooSearchRead } from "@/lib/odoo";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: { projectId?: string } } | { params: Promise<{ projectId?: string }> }
 ) {
+  const t0 = Date.now();
+  const url = new URL(req.url);
+  const enrich = url.searchParams.get("enrich") === "1";
+
   const rawParams = await (ctx as any).params; // soporta object o Promise
   const rawId = rawParams?.projectId;
-
-  console.log("params:", rawParams, "rawId:", rawId);
 
   const projectId = Number(rawId);
   if (!rawId || Number.isNaN(projectId)) {
     return NextResponse.json({ ok: false, error: "Invalid project id", rawId }, { status: 400 });
   }
 
+  const tBranches0 = Date.now();
   const branches = await odooSearchRead(
     "server.branches",
     [
@@ -37,33 +40,34 @@ export async function GET(
     0,
     "type_deploy, name"
   );
+  const tBranchesMs = Date.now() - tBranches0;
 
-  // Enrich with container.deploy info (release + image), because server.branches doesn't expose it directly.
-  const containerIds = (branches || [])
-    .map((b: any) => (Array.isArray(b?.container_id) ? b.container_id[0] : null))
-    .filter((x: any) => Number.isFinite(x));
-
+  let tContainersMs = 0;
   let containersById: Record<string, any> = {};
-  if (containerIds.length) {
-    const containers = await odooSearchRead(
-      "container.deploy",
-      [["id", "in", containerIds]],
-      [
-        "id",
-        "current_docker_image",
-        "other_server_docker_image",
-        "doodba_release_id",
-      ],
-      Math.min(200, containerIds.length),
-      0,
-      "id desc"
-    );
-    for (const c of containers || []) {
-      containersById[String(c.id)] = c;
+
+  // Optional enrich with container.deploy info (release + image)
+  if (enrich) {
+    const containerIds = (branches || [])
+      .map((b: any) => (Array.isArray(b?.container_id) ? b.container_id[0] : null))
+      .filter((x: any) => Number.isFinite(x));
+
+    if (containerIds.length) {
+      const tContainers0 = Date.now();
+      const containers = await odooSearchRead(
+        "container.deploy",
+        [["id", "in", containerIds]],
+        ["id", "current_docker_image", "other_server_docker_image", "doodba_release_id"],
+        Math.min(200, containerIds.length),
+        0,
+        "id desc"
+      );
+      for (const c of containers || []) containersById[String(c.id)] = c;
+      tContainersMs = Date.now() - tContainers0;
     }
   }
 
   const enriched = (branches || []).map((b: any) => {
+    if (!enrich) return b;
     const cid = Array.isArray(b?.container_id) ? b.container_id[0] : null;
     const c = cid ? containersById[String(cid)] : null;
     return {
@@ -78,11 +82,17 @@ export async function GET(
     ok: true,
     branches: enriched,
     meta: {
+      enrich,
       branchesCount: (branches || []).length,
-      containerIdsCount: containerIds.length,
       containersFound: Object.keys(containersById || {}).length,
     },
   });
   res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+
+  const totalMs = Date.now() - t0;
+  res.headers.set(
+    "Server-Timing",
+    `odoo_branches;dur=${tBranchesMs}, odoo_containers;dur=${tContainersMs}, total;dur=${totalMs}`
+  );
   return res;
 }
