@@ -26,7 +26,6 @@ export default async function Dashboard() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">LGD Dashboard</h1>
-          <Link className="text-sm underline text-white/80" href="/">Home</Link>
         </div>
 
         <ProjectsClient githubId={String(githubId)} />
