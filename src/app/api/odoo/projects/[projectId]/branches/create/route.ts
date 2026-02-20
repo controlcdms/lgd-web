@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { odooCall, odooSearchRead } from "@/lib/odoo";
+import { odooCallAsUser, odooSearchReadAsUser } from "@/lib/odoo";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getOdooRpcAuth } from "@/app/api/odoo/_authz";
 
-type DeployType =
-  | "production_deploy"
-  | "staging_deploy"
-  | "testing_deploy"
-  | "local_deploy";
+type DeployType = "production_deploy" | "staging_deploy" | "testing_deploy" | "local_deploy";
 
 type Body = {
   name?: string;
@@ -18,50 +15,34 @@ type Body = {
   base_version_tag_id?: number | null;
 };
 
-const ALLOWED_DEPLOY_TYPES: DeployType[] = [
-  "production_deploy",
-  "staging_deploy",
-  "testing_deploy",
-  "local_deploy",
-];
+const ALLOWED_DEPLOY_TYPES: DeployType[] = ["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"];
 
-async function ensureProjectAccess(projectId: number, odooUserId: number) {
-  const rows = await odooSearchRead(
-    "server.repos",
-    [
-      ["id", "=", projectId],
-      "|",
-      ["user_id", "=", odooUserId],
-      ["owner_id", "=", odooUserId],
-    ],
-    ["id"],
-    1
-  );
-  return rows?.[0]?.id ? true : false;
+async function ensureProjectAccessAsUser(req: Request, projectId: number) {
+  const rpcAuth = await getOdooRpcAuth(req);
+  if (!rpcAuth) return null;
+  const rows = await odooSearchReadAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", [["id", "=", projectId]], ["id"], 1);
+  return rows?.[0] || null;
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ projectId: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
-    if (!odooUserId) {
-      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
-    }
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
 
     const { projectId } = await ctx.params;
     const repositoryId = parseInt(projectId, 10);
-
     if (!repositoryId || Number.isNaN(repositoryId)) {
       return NextResponse.json({ ok: false, error: "Invalid project id" }, { status: 400 });
     }
 
-    const hasAccess = await ensureProjectAccess(repositoryId, odooUserId);
-    if (!hasAccess) {
-      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
-    }
+    const hasAccess = await ensureProjectAccessAsUser(req, repositoryId);
+    if (!hasAccess) return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
 
     const body = (await req.json().catch(() => null)) as Body | null;
-
     if (typeof body?.name !== "string" || !body.name.trim()) {
       return NextResponse.json({ ok: false, error: "Invalid name" }, { status: 400 });
     }
@@ -78,7 +59,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
     const deployType = rawDeployType as DeployType;
 
     if (deployType === "production_deploy") {
-      const existing = await odooSearchRead(
+      const existing = await odooSearchReadAsUser(
+        rpcAuth.login,
+        rpcAuth.apiKey,
         "server.branches",
         [["repository_id", "=", repositoryId], ["name", "=", "production"]],
         ["id"],
@@ -89,35 +72,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
       }
     }
 
-    const defaults = await odooCall("server.repos", "get_branch_create_defaults_api", [
-      repositoryId,
-      deployType,
-    ]);
+    const defaults = await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", "get_branch_create_defaults_api", [repositoryId, deployType]);
 
     const license_id = body?.license_id ?? (defaults as any)?.license?.id ?? false;
     const server_id = body?.server_id ?? (defaults as any)?.server?.id ?? false;
     const base_version_tag_id = body?.base_version_tag_id ?? (defaults as any)?.release?.id ?? false;
 
-    const res = await odooCall("server.repos", "create_branch_from_ui_api", [
+    const res = await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", "create_branch_from_ui_api", [
       repositoryId,
       name,
       deployType,
-      {
-        license_id,
-        server_id,
-        base_version_tag_id,
-      },
+      { license_id, server_id, base_version_tag_id },
     ]);
 
-    return NextResponse.json({
-      ok: true,
-      result: res,
-      used_defaults: {
-        license_id,
-        server_id,
-        base_version_tag_id,
-      },
-    });
+    return NextResponse.json({ ok: true, result: res, used_defaults: { license_id, server_id, base_version_tag_id } });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Error creating branch" }, { status: 500 });
   }

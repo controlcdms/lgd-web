@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooSearchReadAsUser } from "@/lib/odoo";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getOdooRpcAuth } from "@/app/api/odoo/_authz";
 
-async function ensureProjectAccess(projectId: number, odooUserId: number) {
-  const rows = await odooSearchRead(
+async function ensureProjectAccessAsUser(req: Request, projectId: number) {
+  const rpcAuth = await getOdooRpcAuth(req);
+  if (!rpcAuth) return null;
+
+  const rows = await odooSearchReadAsUser(
+    rpcAuth.login,
+    rpcAuth.apiKey,
     "server.repos",
-    [
-      ["id", "=", projectId],
-      "|",
-      ["user_id", "=", odooUserId],
-      ["owner_id", "=", odooUserId],
-    ],
+    [["id", "=", projectId]],
     ["id"],
     1
   );
-  return rows?.[0]?.id ? true : false;
+  return rows?.[0] || null;
 }
 
 export async function GET(
@@ -32,6 +33,11 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
   }
 
+  const rpcAuth = await getOdooRpcAuth(req);
+  if (!rpcAuth) {
+    return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
+  }
+
   const rawParams = await (ctx as any).params;
   const rawId = rawParams?.projectId;
 
@@ -40,18 +46,17 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "Invalid project id", rawId }, { status: 400 });
   }
 
-  const hasAccess = await ensureProjectAccess(projectId, odooUserId);
+  const hasAccess = await ensureProjectAccessAsUser(req, projectId);
   if (!hasAccess) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
   const tBranches0 = Date.now();
-  const branches = await odooSearchRead(
+  const branches = await odooSearchReadAsUser(
+    rpcAuth.login,
+    rpcAuth.apiKey,
     "server.branches",
-    [
-      ["repository_id", "=", projectId],
-      ["active", "=", true],
-    ],
+    [["repository_id", "=", projectId], ["active", "=", true]],
     [
       "id",
       "name",
@@ -80,7 +85,9 @@ export async function GET(
 
     if (containerIds.length) {
       const tContainers0 = Date.now();
-      const containers = await odooSearchRead(
+      const containers = await odooSearchReadAsUser(
+        rpcAuth.login,
+        rpcAuth.apiKey,
         "container.deploy",
         [["id", "in", containerIds]],
         ["id", "current_docker_image", "other_server_docker_image", "doodba_release_id"],
