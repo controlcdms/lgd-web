@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { odooCall } from "@/lib/odoo";
 
 function idFromParam(raw: any) {
@@ -7,28 +9,27 @@ function idFromParam(raw: any) {
   return n;
 }
 
+async function ensureAuth() {
+  const session = await getServerSession(authOptions);
+  return Number((session as any)?.user?.odooUserId || 0) || null;
+}
+
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const odooUserId = await ensureAuth();
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
     const { id } = await ctx.params;
     const templateId = idFromParam(id);
 
-    // 1) leo los many2many ids
-    const rows = await odooCall<any[]>("doodba.template", "read", [
-      [templateId],
-      ["dependency_pip_ids", "dependencia_apt_ids"],
-    ]);
+    const rows = await odooCall<any[]>("doodba.template", "read", [[templateId], ["dependency_pip_ids", "dependencia_apt_ids"]]);
 
     const row = rows?.[0] || {};
     const pipIds: number[] = Array.isArray(row.dependency_pip_ids) ? row.dependency_pip_ids : [];
     const aptIds: number[] = Array.isArray(row.dependencia_apt_ids) ? row.dependencia_apt_ids : [];
 
-    // 2) busco nombres
-    const pip = pipIds.length
-      ? await odooCall<any[]>("doodba.dependency.pip", "read", [pipIds, ["name"]])
-      : [];
-    const apt = aptIds.length
-      ? await odooCall<any[]>("doodba.dependency.apt", "read", [aptIds, ["name"]])
-      : [];
+    const pip = pipIds.length ? await odooCall<any[]>("doodba.dependency.pip", "read", [pipIds, ["name"]]) : [];
+    const apt = aptIds.length ? await odooCall<any[]>("doodba.dependency.apt", "read", [aptIds, ["name"]]) : [];
 
     return NextResponse.json({
       ok: true,
@@ -42,6 +43,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const odooUserId = await ensureAuth();
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
     const { id } = await ctx.params;
     const templateId = idFromParam(id);
     const body = await req.json();
@@ -49,7 +53,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const pipNames: string[] = Array.isArray(body?.pip) ? body.pip : [];
     const aptNames: string[] = Array.isArray(body?.apt) ? body.apt : [];
 
-    // 1) map name -> id (busco en Odoo)
     const pipRows = pipNames.length
       ? await odooCall<any[]>("doodba.dependency.pip", "search_read", [
           [["name", "in", pipNames]],
@@ -64,11 +67,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         ], { limit: 500 })
       : [];
 
-    // 2) ids finales (solo lo que existe)
     const pipIds = pipRows.map((x) => x.id);
     const aptIds = aptRows.map((x) => x.id);
 
-    // 3) write en doodba.template
     const ok = await odooCall<boolean>("doodba.template", "write", [
       [templateId],
       {

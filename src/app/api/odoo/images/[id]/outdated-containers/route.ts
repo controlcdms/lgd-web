@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { odooSearchRead } from "@/lib/odoo";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
     const { id } = await ctx.params;
     const templateId = Number(id);
     const url = new URL(req.url);
@@ -15,7 +21,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       return NextResponse.json({ ok: false, error: "releaseId inválido" }, { status: 400 });
     }
 
-    // Contenedores del template que NO están en este release
     const rows = await odooSearchRead(
       "container.deploy",
       [
@@ -40,9 +45,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     return NextResponse.json({ ok: true, containers: rows || [] });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || String(e) },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
   }
 }

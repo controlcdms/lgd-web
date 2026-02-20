@@ -12,14 +12,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     const session = await getServerSession(authOptions);
-    const githubLogin = (session as any)?.user?.githubLogin;
-    const githubId = (session as any)?.user?.githubId;
-    if (!githubLogin && !githubId) {
-      return NextResponse.json({ ok: false, error: "No auth user" }, { status: 401 });
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    const githubLogin = (session as any)?.user?.githubLogin || "";
+    const githubId = (session as any)?.user?.githubId || "";
+    if (!odooUserId) {
+      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));
-    const commitHash = String(body?.commit || "").trim();
+    const commitHash = String((body as any)?.commit || "").trim();
 
     await odooCall<any>("doodba.template", "api_set_commit", [
       imageId,
@@ -30,9 +31,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || String(e) },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
   }
 }

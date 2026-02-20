@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { odooCall } from "@/lib/odoo";
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const t0 = Date.now();
   const { id } = await ctx.params;
   const imageId = Number(id);
@@ -17,11 +14,12 @@ export async function GET(
 
   try {
     const session = await getServerSession(authOptions);
-    const githubLogin = (session as any)?.user?.githubLogin;
-    const githubId = (session as any)?.user?.githubId;
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    const githubLogin = (session as any)?.user?.githubLogin || "";
+    const githubId = (session as any)?.user?.githubId || "";
 
-    if (!githubLogin && !githubId) {
-      return NextResponse.json({ ok: false, error: "No auth user" }, { status: 401 });
+    if (!odooUserId) {
+      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
     }
 
     const tOdoo0 = Date.now();
@@ -42,9 +40,6 @@ export async function GET(
     res.headers.set("Server-Timing", `odoo;dur=${tOdooMs}, total;dur=${totalMs}`);
     return res;
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Error cargando imagen" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message || "Error cargando imagen" }, { status: 500 });
   }
 }

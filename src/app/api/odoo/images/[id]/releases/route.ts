@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { odooSearchRead } from "@/lib/odoo";
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const t0 = Date.now();
   try {
+    const session = await getServerSession(authOptions);
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
     const { id } = await ctx.params;
     const templateId = Number(id);
-
     if (!Number.isFinite(templateId)) {
       return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
     }
@@ -35,9 +37,6 @@ export async function GET(
     res.headers.set("Server-Timing", `odoo;dur=${tOdooMs}, total;dur=${totalMs}`);
     return res;
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message || "Error" }, { status: 500 });
   }
 }

@@ -10,24 +10,23 @@ function cleanName(s: string) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
     const githubId = (session as any)?.user?.githubId;
-    if (!githubId) {
-      return NextResponse.json({ ok: false, error: "No githubId" }, { status: 401 });
+    if (!odooUserId) {
+      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));
-    const name = cleanName(body?.name);
-    const branch_version = String(body?.branch_version || "17.0");
-    const image_type_scope = String(body?.image_type_scope || "private_image");
-    const description = String(body?.description || "");
-    const custom_commit = Boolean(body?.custom_commit);
-    const commit = String(body?.commit || "").trim();
+    const name = cleanName((body as any)?.name);
+    const branch_version = String((body as any)?.branch_version || "17.0");
+    const image_type_scope = String((body as any)?.image_type_scope || "private_image");
+    const description = String((body as any)?.description || "");
+    const custom_commit = Boolean((body as any)?.custom_commit);
+    const commit = String((body as any)?.commit || "").trim();
 
     if (!name) {
       return NextResponse.json({ ok: false, error: "Falta name" }, { status: 400 });
     }
-
-    // reglas básicas
     if (!/^[a-z][a-z0-9-]*$/.test(name)) {
       return NextResponse.json(
         { ok: false, error: "Nombre inválido: usa minúsculas, números y guiones; empieza con letra." },
@@ -36,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     const payload = {
-      oauth_uid: String(githubId),
+      oauth_uid: String(githubId || ""),
       name,
       branch_version,
       image_type_scope,
