@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { odooCall } from "@/lib/odoo";
-import { ensureBranchAccess, requireOdooUserId } from "@/app/api/odoo/_authz";
+import { odooCallAsUser } from "@/lib/odoo";
+import { ensureBranchAccessAsUser, getOdooRpcAuth, requireOdooUserId } from "@/app/api/odoo/_authz";
 
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ branchId: string }> }
-) {
+export async function POST(req: Request, ctx: { params: Promise<{ branchId: string }> }) {
   try {
     const odooUserId = await requireOdooUserId();
     if (!odooUserId) {
       return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+    }
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) {
+      return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
     }
 
     const { branchId } = await ctx.params;
@@ -18,18 +20,15 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Invalid branch id" }, { status: 400 });
     }
 
-    const branch = await ensureBranchAccess(id, odooUserId);
+    const branch = await ensureBranchAccessAsUser(req, id);
     if (!branch) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
-    await odooCall("server.branches", "stop_container", [[id]]);
+    await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.branches", "stop_container", [[id]]);
 
     return NextResponse.json({ ok: true, message: "Contenedor detenido correctamente" });
   } catch (error: any) {
-    return NextResponse.json(
-      { ok: false, error: error?.message || error?.data?.message || "Error al detener el contenedor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: error?.message || error?.data?.message || "Error al detener el contenedor" }, { status: 500 });
   }
 }

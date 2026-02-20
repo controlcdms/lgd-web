@@ -23,7 +23,6 @@ export const authOptions: NextAuthOptions = {
         token.githubId = (profile as any).id;
       }
 
-      // Ensure Odoo user exists/updated from GitHub login and persist odooUserId in JWT.
       try {
         // @ts-ignore
         const github_login = String(token.githubLogin || "").trim();
@@ -34,23 +33,22 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         const access_token = String(account?.access_token || token.accessToken || "").trim();
 
-        // Run on first sign-in and whenever we receive a fresh access token from GitHub.
         if (github_login && access_token && (!token.odooUserId || account?.access_token)) {
           const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
           const r = await fetch(`${base}/api/odoo/me/upsert-user`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              access_token,
-              github_login,
-              github_id,
-              email,
-            }),
+            body: JSON.stringify({ access_token, github_login, github_id, email }),
           });
           const j = await r.json().catch(() => ({}));
           if (r.ok && j?.ok && j?.userId) {
             // @ts-ignore
             token.odooUserId = Number(j.userId);
+            // @ts-ignore
+            token.odooLogin = String(j?.login || github_login);
+            // Keep in JWT only (not exposed in session.user)
+            // @ts-ignore
+            if (j?.apiKey) token.odooApiKey = String(j.apiKey);
           }
         }
       } catch {
@@ -66,17 +64,17 @@ export const authOptions: NextAuthOptions = {
         session.user.githubLogin = token.githubLogin;
         // @ts-ignore
         session.user.email = token.email;
-        // ✅ mantenlo SOLO aquí (consistencia)
         // @ts-ignore
         session.user.githubId = token.githubId;
         // @ts-ignore
         session.user.odooUserId = token.odooUserId ?? null;
+        // @ts-ignore
+        session.user.odooLogin = token.odooLogin ?? null;
       }
       return session;
     },
 
     async signIn() {
-      // Upsert now happens in jwt callback (single source).
       return true;
     },
   },

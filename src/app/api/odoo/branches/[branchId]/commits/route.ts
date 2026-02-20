@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { odooSearchRead } from "@/lib/odoo";
-import { ensureBranchAccess, requireOdooUserId } from "@/app/api/odoo/_authz";
+import { odooSearchReadAsUser } from "@/lib/odoo";
+import { ensureBranchAccessAsUser, getOdooRpcAuth, requireOdooUserId } from "@/app/api/odoo/_authz";
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ branchId: string }> }
-) {
+export async function GET(req: Request, ctx: { params: Promise<{ branchId: string }> }) {
   try {
     const odooUserId = await requireOdooUserId();
     if (!odooUserId) {
       return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+    }
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) {
+      return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
     }
 
     const { branchId } = await ctx.params;
@@ -18,7 +20,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Invalid branch id" }, { status: 400 });
     }
 
-    const branch = await ensureBranchAccess(id, odooUserId);
+    const branch = await ensureBranchAccessAsUser(req, id);
     if (!branch) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
@@ -26,7 +28,9 @@ export async function GET(
     const url = new URL(req.url);
     const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") || 20)));
 
-    const commits = await odooSearchRead(
+    const commits = await odooSearchReadAsUser(
+      rpcAuth.login,
+      rpcAuth.apiKey,
       "branch.commits",
       [["branch_id", "=", id]],
       ["id", "commit_id", "commit_message", "commit_datetime", "commit_user", "commit_pusher"],

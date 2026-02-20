@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooSearchReadAsUser } from "@/lib/odoo";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getOdooRpcAuth } from "@/app/api/odoo/_authz";
 
-export async function GET() {
+export async function GET(req: Request) {
   const t0 = Date.now();
   try {
     const session = await getServerSession(authOptions);
@@ -11,18 +12,18 @@ export async function GET() {
     const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
 
     if (!odooUserId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "No odooUserId in session",
-          debug: { githubId },
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ ok: false, error: "No odooUserId in session", debug: { githubId } }, { status: 401 });
+    }
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) {
+      return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
     }
 
     const tRepos0 = Date.now();
-    const projects = await odooSearchRead(
+    const projects = await odooSearchReadAsUser(
+      rpcAuth.login,
+      rpcAuth.apiKey,
       "server.repos",
       ["|", ["user_id", "=", odooUserId], ["owner_id", "=", odooUserId]],
       [

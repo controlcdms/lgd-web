@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       action: result?.action || "updated",
       userId: Number(result?.user_id || 0) || null,
       login: result?.login || github_login,
-      // No exponer api_key al frontend por defecto
+      apiKey: result?.api_key || null,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
