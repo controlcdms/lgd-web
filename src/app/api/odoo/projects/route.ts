@@ -1,58 +1,23 @@
 import { NextResponse } from "next/server";
-import { odooCall, odooSearchRead } from "@/lib/odoo";
+import { odooSearchRead } from "@/lib/odoo";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(req: Request) {
+export async function GET() {
   const t0 = Date.now();
   try {
-    const url = new URL(req.url);
+    const session = await getServerSession(authOptions);
+    const githubId = (session as any)?.user?.githubId ?? null;
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
 
-    // ✅ 1) por query (SSR estable)
-    const githubIdFromQuery = url.searchParams.get("githubId");
-
-    // ✅ 2) por header (si lo quieres usar igual)
-    const githubIdFromHeader = req.headers.get("x-github-id");
-
-    let githubId: string | null = githubIdFromQuery || githubIdFromHeader;
-
-    // ✅ 3) fallback a sesión (client-side normal)
-    if (!githubId) {
-      const session = await getServerSession(authOptions);
-      githubId =
-        (session as any)?.user?.githubId ??
-        (session as any)?.githubId ??
-        null;
-
-      if (!githubId) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "No githubId",
-            debug: {
-              githubIdFromQuery,
-              githubIdFromHeader,
-            },
-          },
-          { status: 401 }
-        );
-      }
-    }
-
-    const tUsers0 = Date.now();
-    const usersByUid = await odooSearchRead(
-      "res.users",
-      [["oauth_uid", "=", String(githubId)]],
-      ["id", "login", "oauth_uid"],
-      1
-    );
-    const tUsersMs = Date.now() - tUsers0;
-
-    const odooUserId = usersByUid?.[0]?.id ?? null;
     if (!odooUserId) {
       return NextResponse.json(
-        { ok: false, error: "Usuario Odoo no encontrado", githubId },
-        { status: 404 }
+        {
+          ok: false,
+          error: "No odooUserId in session",
+          debug: { githubId },
+        },
+        { status: 401 }
       );
     }
 
@@ -79,18 +44,11 @@ export async function GET(req: Request) {
     );
     const tReposMs = Date.now() - tRepos0;
 
-    // NOTE: keep this endpoint FAST.
-    // Any expensive enrichment (production branch/container/release) must be done in a separate endpoint.
-
     const res = NextResponse.json({ ok: true, githubId, odooUserId, projects });
     res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
 
     const totalMs = Date.now() - t0;
-    // Server-Timing for quick perf inspection in browser DevTools
-    res.headers.set(
-      "Server-Timing",
-      `odoo_users;dur=${tUsersMs}, odoo_repos;dur=${tReposMs}, total;dur=${totalMs}`
-    );
+    res.headers.set("Server-Timing", `odoo_repos;dur=${tReposMs}, total;dur=${totalMs}`);
     return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
