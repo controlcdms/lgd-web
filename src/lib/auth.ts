@@ -23,6 +23,40 @@ export const authOptions: NextAuthOptions = {
         token.githubId = (profile as any).id;
       }
 
+      // Ensure Odoo user exists/updated from GitHub login and persist odooUserId in JWT.
+      try {
+        // @ts-ignore
+        const github_login = String(token.githubLogin || "").trim();
+        // @ts-ignore
+        const github_id = token.githubId ? String(token.githubId) : "";
+        // @ts-ignore
+        const email = token.email ? String(token.email) : "";
+        // @ts-ignore
+        const access_token = String(account?.access_token || token.accessToken || "").trim();
+
+        // Run on first sign-in and whenever we receive a fresh access token from GitHub.
+        if (github_login && access_token && (!token.odooUserId || account?.access_token)) {
+          const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
+          const r = await fetch(`${base}/api/odoo/me/upsert-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              access_token,
+              github_login,
+              github_id,
+              email,
+            }),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j?.ok && j?.userId) {
+            // @ts-ignore
+            token.odooUserId = Number(j.userId);
+          }
+        }
+      } catch {
+        // Best-effort: do not block auth flow if Odoo sync fails.
+      }
+
       return token;
     },
 
@@ -35,35 +69,15 @@ export const authOptions: NextAuthOptions = {
         // ✅ mantenlo SOLO aquí (consistencia)
         // @ts-ignore
         session.user.githubId = token.githubId;
+        // @ts-ignore
+        session.user.odooUserId = token.odooUserId ?? null;
       }
       return session;
     },
 
-    async signIn({ account, profile }) {
-      try {
-        const access_token = account?.access_token;
-        const github_login = (profile as any)?.login;
-        const github_id = (profile as any)?.id;
-
-        if (!access_token || !github_login) return true;
-
-        const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        // Upsert user in Odoo (create if missing) so Next is the UI entrypoint.
-        await fetch(`${base}/api/odoo/me/upsert-user`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token,
-            github_login,
-            github_id,
-          }),
-        });
-
-        return true;
-      } catch {
-        // Best-effort: do not block login if Odoo sync fails.
-        return true;
-      }
+    async signIn() {
+      // Upsert now happens in jwt callback (single source).
+      return true;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
