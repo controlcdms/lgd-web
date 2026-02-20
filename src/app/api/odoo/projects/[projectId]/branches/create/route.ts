@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { odooCall, odooSearchRead } from "@/lib/odoo";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 type DeployType =
   | "production_deploy"
@@ -23,50 +25,58 @@ const ALLOWED_DEPLOY_TYPES: DeployType[] = [
   "local_deploy",
 ];
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ projectId: string }> }
-) {
+async function ensureProjectAccess(projectId: number, odooUserId: number) {
+  const rows = await odooSearchRead(
+    "server.repos",
+    [
+      ["id", "=", projectId],
+      "|",
+      ["user_id", "=", odooUserId],
+      ["owner_id", "=", odooUserId],
+    ],
+    ["id"],
+    1
+  );
+  return rows?.[0]?.id ? true : false;
+}
+
+export async function POST(req: Request, ctx: { params: Promise<{ projectId: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
+    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    if (!odooUserId) {
+      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+    }
+
     const { projectId } = await ctx.params;
     const repositoryId = parseInt(projectId, 10);
 
     if (!repositoryId || Number.isNaN(repositoryId)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid project id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "Invalid project id" }, { status: 400 });
+    }
+
+    const hasAccess = await ensureProjectAccess(repositoryId, odooUserId);
+    if (!hasAccess) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
     const body = (await req.json().catch(() => null)) as Body | null;
 
-    // --- name ---
     if (typeof body?.name !== "string" || !body.name.trim()) {
       return NextResponse.json({ ok: false, error: "Invalid name" }, { status: 400 });
     }
     const name = body.name.trim();
 
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid branch name format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "Invalid branch name format" }, { status: 400 });
     }
 
-    // --- deployType ---
-    const rawDeployType =
-      (body as any)?.deployType ?? (body as any)?.type_deploy;
-
+    const rawDeployType = (body as any)?.deployType ?? (body as any)?.type_deploy;
     if (!ALLOWED_DEPLOY_TYPES.includes(rawDeployType as DeployType)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid deployType" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "Invalid deployType" }, { status: 400 });
     }
-
     const deployType = rawDeployType as DeployType;
 
-    // --- producción única ---
     if (deployType === "production_deploy") {
       const existing = await odooSearchRead(
         "server.branches",
@@ -75,58 +85,29 @@ export async function POST(
         1
       );
       if (existing.length) {
-        return NextResponse.json(
-          { ok: false, error: "Production branch already exists" },
-          { status: 400 }
-        );
+        return NextResponse.json({ ok: false, error: "Production branch already exists" }, { status: 400 });
       }
     }
 
-    // ✅ 1) obtener defaults desde Odoo
-    const defaults = await odooCall(
-      "server.repos",
-      "get_branch_create_defaults_api",
-      [repositoryId, deployType]
-    );
-    console.log("[defaults raw]", defaults);
+    const defaults = await odooCall("server.repos", "get_branch_create_defaults_api", [
+      repositoryId,
+      deployType,
+    ]);
 
+    const license_id = body?.license_id ?? (defaults as any)?.license?.id ?? false;
+    const server_id = body?.server_id ?? (defaults as any)?.server?.id ?? false;
+    const base_version_tag_id = body?.base_version_tag_id ?? (defaults as any)?.release?.id ?? false;
 
-    // ✅ 2) resolver valores finales (frontend > defaults)
-    const license_id =
-      body?.license_id ?? defaults?.license?.id ?? false;
-
-    const server_id =
-      body?.server_id ?? defaults?.server?.id ?? false;
-
-    const base_version_tag_id =
-      body?.base_version_tag_id ?? defaults?.release?.id ?? false;
-
-    console.log("[create branch params]", {
-  repositoryId,
-  name,
-  deployType,
-  license_id,
-  server_id,
-  base_version_tag_id,
-});
-
-    // --- crear rama ---
-    const res = await odooCall(
-      "server.repos",
-      "create_branch_from_ui_api",
-      [
-        repositoryId,               // number
-        name,                       // string
-        deployType,                 // string
-        {                           // opts dict
-          license_id,
-          server_id,
-          base_version_tag_id,
-        },
-      ]
-    );
-
-
+    const res = await odooCall("server.repos", "create_branch_from_ui_api", [
+      repositoryId,
+      name,
+      deployType,
+      {
+        license_id,
+        server_id,
+        base_version_tag_id,
+      },
+    ]);
 
     return NextResponse.json({
       ok: true,
@@ -138,9 +119,6 @@ export async function POST(
       },
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Error creating branch" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message || "Error creating branch" }, { status: 500 });
   }
 }

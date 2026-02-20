@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
 import { odooSearchRead } from "@/lib/odoo";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+async function ensureProjectAccess(projectId: number, odooUserId: number) {
+  const rows = await odooSearchRead(
+    "server.repos",
+    [
+      ["id", "=", projectId],
+      "|",
+      ["user_id", "=", odooUserId],
+      ["owner_id", "=", odooUserId],
+    ],
+    ["id"],
+    1
+  );
+  return rows?.[0]?.id ? true : false;
+}
 
 export async function GET(
   req: Request,
@@ -9,12 +26,23 @@ export async function GET(
   const url = new URL(req.url);
   const enrich = url.searchParams.get("enrich") === "1";
 
-  const rawParams = await (ctx as any).params; // soporta object o Promise
+  const session = await getServerSession(authOptions);
+  const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+  if (!odooUserId) {
+    return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+  }
+
+  const rawParams = await (ctx as any).params;
   const rawId = rawParams?.projectId;
 
   const projectId = Number(rawId);
   if (!rawId || Number.isNaN(projectId)) {
     return NextResponse.json({ ok: false, error: "Invalid project id", rawId }, { status: 400 });
+  }
+
+  const hasAccess = await ensureProjectAccess(projectId, odooUserId);
+  if (!hasAccess) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
   const tBranches0 = Date.now();
@@ -45,7 +73,6 @@ export async function GET(
   let tContainersMs = 0;
   let containersById: Record<string, any> = {};
 
-  // Optional enrich with container.deploy info (release + image)
   if (enrich) {
     const containerIds = (branches || [])
       .map((b: any) => (Array.isArray(b?.container_id) ? b.container_id[0] : null))
