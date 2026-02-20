@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { odooCall } from "@/lib/odoo";
+import { odooCallAsUser } from "@/lib/odoo";
+import { getOdooRpcAuth } from "@/app/api/odoo/_authz";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -19,10 +20,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
     }
 
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) {
+      return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const commitHash = String((body as any)?.commit || "").trim();
 
-    await odooCall<any>("doodba.template", "api_set_commit", [
+    await odooCallAsUser<any>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "api_set_commit", [
       imageId,
       commitHash,
       String(githubId || ""),

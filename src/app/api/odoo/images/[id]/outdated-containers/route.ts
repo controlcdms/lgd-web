@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooSearchReadAsUser } from "@/lib/odoo";
+import { getOdooRpcAuth, requireOdooUserId } from "@/app/api/odoo/_authz";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    const odooUserId = await requireOdooUserId();
     if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
 
     const { id } = await ctx.params;
     const templateId = Number(id);
@@ -21,7 +22,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       return NextResponse.json({ ok: false, error: "releaseId inválido" }, { status: 400 });
     }
 
-    const rows = await odooSearchRead(
+    const rows = await odooSearchReadAsUser(
+      rpcAuth.login,
+      rpcAuth.apiKey,
       "container.deploy",
       [
         ["doodba_template_for_pipeline_id", "=", templateId],

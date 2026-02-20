@@ -1,27 +1,28 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { odooSearchRead } from "@/lib/odoo";
+import { odooSearchReadAsUser } from "@/lib/odoo";
+import { getOdooRpcAuth, requireOdooUserId } from "@/app/api/odoo/_authz";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const t0 = Date.now();
   try {
-    const session = await getServerSession(authOptions);
-    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    const odooUserId = await requireOdooUserId();
     if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
 
     const { id } = await ctx.params;
     const templateId = Number(id);
-    if (!Number.isFinite(templateId)) {
-      return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
-    }
+    if (!Number.isFinite(templateId)) return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
 
     const url = new URL(req.url);
     const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 20)));
     const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
 
     const tOdoo0 = Date.now();
-    const releases = await odooSearchRead(
+    const releases = await odooSearchReadAsUser(
+      rpcAuth.login,
+      rpcAuth.apiKey,
       "doodba.tag",
       [["doodba_template", "=", templateId]],
       ["id", "name", "ref", "create_date", "state", "sequence_number"],

@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { odooCreate, odooExecute } from "@/lib/odoo";
+import { odooCallAsUser } from "@/lib/odoo";
+import { getOdooRpcAuth, requireOdooUserId } from "@/app/api/odoo/_authz";
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+    const odooUserId = await requireOdooUserId();
     if (!odooUserId) {
       return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+    }
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) {
+      return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
     }
 
     const body = await req.json().catch(() => null);
@@ -16,20 +19,14 @@ export async function POST(req: Request) {
     const message = String((body as any)?.message || "").trim();
     const resume = String((body as any)?.resume || "").trim();
 
-    if (!templateId) {
-      return NextResponse.json({ ok: false, error: "template_id requerido" }, { status: 400 });
-    }
-    if (!message) {
-      return NextResponse.json({ ok: false, error: "Release notes requerido" }, { status: 400 });
-    }
+    if (!templateId) return NextResponse.json({ ok: false, error: "template_id requerido" }, { status: 400 });
+    if (!message) return NextResponse.json({ ok: false, error: "Release notes requerido" }, { status: 400 });
 
-    const wizardId = await odooCreate("create.tag", {
-      message,
-      resume,
-      doodba_template_id: templateId,
-    });
+    const wizardId = await odooCallAsUser<number>(rpcAuth.login, rpcAuth.apiKey, "create.tag", "create", [
+      { message, resume, doodba_template_id: templateId },
+    ]);
 
-    await odooExecute("create.tag", "add_branch", [wizardId]);
+    await odooCallAsUser<any>(rpcAuth.login, rpcAuth.apiKey, "create.tag", "add_branch", [[wizardId]]);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

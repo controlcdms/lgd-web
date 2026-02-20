@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { odooCall } from "@/lib/odoo";
+import { odooCallAsUser } from "@/lib/odoo";
+import { getOdooRpcAuth } from "@/app/api/odoo/_authz";
 
 function cleanName(s: string) {
   return (s || "").trim();
@@ -12,9 +13,10 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
     const githubId = (session as any)?.user?.githubId;
-    if (!odooUserId) {
-      return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
-    }
+    if (!odooUserId) return NextResponse.json({ ok: false, error: "No odooUserId in session" }, { status: 401 });
+
+    const rpcAuth = await getOdooRpcAuth(req);
+    if (!rpcAuth) return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const name = cleanName((body as any)?.name);
@@ -24,14 +26,9 @@ export async function POST(req: Request) {
     const custom_commit = Boolean((body as any)?.custom_commit);
     const commit = String((body as any)?.commit || "").trim();
 
-    if (!name) {
-      return NextResponse.json({ ok: false, error: "Falta name" }, { status: 400 });
-    }
+    if (!name) return NextResponse.json({ ok: false, error: "Falta name" }, { status: 400 });
     if (!/^[a-z][a-z0-9-]*$/.test(name)) {
-      return NextResponse.json(
-        { ok: false, error: "Nombre inválido: usa minúsculas, números y guiones; empieza con letra." },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "Nombre inválido: usa minúsculas, números y guiones; empieza con letra." }, { status: 400 });
     }
 
     const payload = {
@@ -44,7 +41,9 @@ export async function POST(req: Request) {
       commit,
     };
 
-    const result = await odooCall<{ ok: boolean; image_id: number }>(
+    const result = await odooCallAsUser<{ ok: boolean; image_id: number }>(
+      rpcAuth.login,
+      rpcAuth.apiKey,
       "create.image.wizard",
       "create_from_api",
       [payload]
