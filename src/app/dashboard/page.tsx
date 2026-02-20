@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getServerSession } from "next-auth";
 
 export const dynamic = "force-dynamic";
@@ -10,19 +9,17 @@ export default async function Dashboard() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/api/auth/signin");
 
-  const githubId = (session as any)?.user?.githubId ?? (session as any)?.githubId;
-  if (!githubId) {
+  const odooUserId = Number((session as any)?.user?.odooUserId || 0) || null;
+  if (!odooUserId) {
     return (
       <main className="min-h-screen p-6 text-white">
         <pre className="text-xs whitespace-pre-wrap">
-          {JSON.stringify({ ok: false, error: "No githubId en session", session }, null, 2)}
+          {JSON.stringify({ ok: false, error: "No odooUserId en session", session }, null, 2)}
         </pre>
       </main>
     );
   }
 
-  // Render immediately, and let the client fetch projects so we can show a
-  // visible "Cargando…" state (especially on back navigation).
   return (
     <main className="min-h-screen p-6 text-white">
       <div className="max-w-6xl mx-auto">
@@ -30,9 +27,8 @@ export default async function Dashboard() {
           <h1 className="text-2xl font-bold">LGD Dashboard</h1>
         </div>
 
-        <ProjectsClient githubId={String(githubId)} />
+        <ProjectsClient />
       </div>
     </main>
   );
 }
-

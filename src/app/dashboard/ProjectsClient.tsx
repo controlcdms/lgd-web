@@ -21,18 +21,11 @@ type Project = {
   ssh_url?: string;
 };
 
-export default function ProjectsClient({
-  githubId,
-  initialProjects,
-}: {
-  githubId: string;
-  initialProjects?: Project[];
-}) {
+export default function ProjectsClient({ initialProjects }: { initialProjects?: Project[] }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>(initialProjects || []);
 
-  // Summary cache + dedupe (in-memory) to avoid repeated enrichment calls.
   const summaryLoadedRef = useRef<Set<number>>(new Set());
   const summaryInflightRef = useRef<Set<number>>(new Set());
   const summaryQueueRef = useRef<Set<number>>(new Set());
@@ -52,7 +45,6 @@ export default function ProjectsClient({
       summaryQueueRef.current = new Set();
       if (!batch.length) return;
 
-      // Guardrail: avoid huge batches.
       const limited = batch.slice(0, 120);
       limited.forEach((id) => summaryInflightRef.current.add(id));
 
@@ -88,18 +80,13 @@ export default function ProjectsClient({
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch("/api/odoo/projects", {
-        headers: { "x-github-id": String(githubId) },
-      });
+      const r = await fetch("/api/odoo/projects");
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
 
       const baseProjects = (j.projects || []) as Project[];
       setProjects(baseProjects);
 
-      // Enrich will be requested on-demand as cards become visible (IntersectionObserver in ProjectsGrid).
-      // We keep an optional small warm-up here to make the first paint look complete quickly.
-      // Reset per-load caches (new user / refresh)
       summaryLoadedRef.current = new Set();
       summaryInflightRef.current = new Set();
       summaryQueueRef.current = new Set();
@@ -116,12 +103,10 @@ export default function ProjectsClient({
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [githubId]);
+  }, []);
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
-  // If user navigates back to the dashboard (e.g., clicks Projects in sidebar),
-  // exit details view and show the cards grid.
   const pathname = usePathname();
   useEffect(() => {
     if (pathname === "/dashboard") {
@@ -129,7 +114,6 @@ export default function ProjectsClient({
     }
   }, [pathname]);
 
-  // Sidebar navigation (e.g., clicking "Proyectos" while already on /dashboard)
   useEffect(() => {
     const handler = (ev: any) => {
       const href = String(ev?.detail?.href || "");
@@ -139,13 +123,11 @@ export default function ProjectsClient({
     return () => window.removeEventListener("lgd:navigate", handler as any);
   }, []);
 
-
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find((p) => p.id === selectedProjectId) || null;
   }, [selectedProjectId, projects]);
 
-  // ✅ VISTA DETALLE (oculta grid)
   if (selectedProjectId) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -159,12 +141,13 @@ export default function ProjectsClient({
             </button>
             <div>
               <div className="text-xs font-mono text-white/40 uppercase tracking-widest">Project Unit</div>
-              <div className="break-all text-lg font-bold tracking-tight text-white sm:text-2xl">{selectedProject?.repo_name ?? `#${selectedProjectId}`}</div>
+              <div className="break-all text-lg font-bold tracking-tight text-white sm:text-2xl">
+                {selectedProject?.repo_name ?? `#${selectedProjectId}`}
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Actions placeholder: Settings, Git Link, etc */}
             {selectedProject?.html_url && (
               <a
                 href={selectedProject.html_url}
@@ -183,7 +166,6 @@ export default function ProjectsClient({
     );
   }
 
-  // ✅ VISTA LISTA
   if (loading && projects.length === 0) {
     return <ProjectsLoading />;
   }
