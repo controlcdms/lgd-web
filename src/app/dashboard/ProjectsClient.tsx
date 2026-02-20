@@ -149,7 +149,7 @@ export default function ProjectsClient({
   if (selectedProjectId) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSelectedProjectId(null)}
@@ -159,7 +159,7 @@ export default function ProjectsClient({
             </button>
             <div>
               <div className="text-xs font-mono text-white/40 uppercase tracking-widest">Project Unit</div>
-              <div className="text-2xl font-bold tracking-tight text-white">{selectedProject?.repo_name ?? `#${selectedProjectId}`}</div>
+              <div className="break-all text-lg font-bold tracking-tight text-white sm:text-2xl">{selectedProject?.repo_name ?? `#${selectedProjectId}`}</div>
             </div>
           </div>
 

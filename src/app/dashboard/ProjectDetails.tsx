@@ -505,8 +505,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         className={`group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border p-4 transition-all duration-200 ${statusBg} hover:bg-opacity-50 hover:border-white/20`}
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm text-white/90">{b.name}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="break-all font-mono text-sm text-white/90">{b.name}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 text-white/50 bg-white/5">#{b.id}</span>
             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${b.branch_status === 'created' ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/40 bg-white/5'
               }`}>
@@ -561,7 +561,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         </div>
 
         {!isLocal ? (
-          <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+          <div className="flex w-full shrink-0 flex-wrap gap-2 opacity-80 transition-opacity group-hover:opacity-100 md:w-auto">
             {!isRunning ? (
               <Button
                 size="xs"

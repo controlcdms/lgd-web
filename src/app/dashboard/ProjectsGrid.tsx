@@ -179,7 +179,7 @@ export default function ProjectsGrid({
   return (
     <>
       {/* buscador + crear */}
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full max-w-xl group">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-white/40">🔍</span>
@@ -190,13 +190,13 @@ export default function ProjectsGrid({
             placeholder="Search projects..."
             className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-black/40 text-white placeholder-white/40 focus:outline-none focus:bg-black/60 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 sm:text-sm transition-all shadow-inner"
           />
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden items-center pr-3 sm:flex">
             <span className="text-xs text-white/30 font-mono">CMD+K</span>
           </div>
         </div>
 
         <button
-          className="flex items-center gap-2 rounded-xl bg-blue-600/90 hover:bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="flex w-full justify-center items-center gap-2 rounded-xl bg-blue-600/90 hover:bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
           onClick={() => {
             setErr(null);
             setShowCreate(true);

@@ -61,7 +61,7 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="h-screen w-64 shrink-0 border-r border-white/5 bg-[#0c0c0e] relative flex flex-col">
+    <aside className="hidden md:flex h-screen w-64 shrink-0 border-r border-white/5 bg-[#0c0c0e] relative flex-col">
       <div className="p-6">
         <div className="flex items-center gap-2 mb-1">
           <div className="h-3 w-3 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]"></div>
