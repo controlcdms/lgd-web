@@ -17,7 +17,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const id = Number(p.id || 0);
     if (!id) return NextResponse.json({ ok: false, error: "id inválido" }, { status: 400 });
 
-    const result = await odooCallAsUser<unknown>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "create_doodba_tag_action", [[id]]);
+    const result = await odooCallAsUser<unknown>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "create_doodba_tag_action", [[id]]);
 
     return NextResponse.json({ ok: true, result });
   } catch (e: unknown) {

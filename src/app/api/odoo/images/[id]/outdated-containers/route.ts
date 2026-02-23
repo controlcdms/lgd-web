@@ -23,7 +23,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     const rows = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "container.deploy",
       [

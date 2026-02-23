@@ -22,11 +22,11 @@ export async function POST(req: Request) {
     if (!templateId) return NextResponse.json({ ok: false, error: "template_id requerido" }, { status: 400 });
     if (!message) return NextResponse.json({ ok: false, error: "Release notes requerido" }, { status: 400 });
 
-    const wizardId = await odooCallAsUser<number>(rpcAuth.login, rpcAuth.apiKey, "create.tag", "create", [
+    const wizardId = await odooCallAsUser<number>(rpcAuth.uid, rpcAuth.apiKey,  "create.tag", "create", [
       { message, resume, doodba_template_id: templateId },
     ]);
 
-    await odooCallAsUser<any>(rpcAuth.login, rpcAuth.apiKey, "create.tag", "add_branch", [[wizardId]]);
+    await odooCallAsUser<any>(rpcAuth.uid, rpcAuth.apiKey,  "create.tag", "add_branch", [[wizardId]]);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

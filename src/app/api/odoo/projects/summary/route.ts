@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     const tBranches0 = Date.now();
     const prodBranches = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "server.branches",
       [
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     const containersById: Record<string, any> = {};
     if (prodContainerIds.length) {
       const containers = await odooSearchReadAsUser(
-        rpcAuth.login,
+        rpcAuth.uid,
         rpcAuth.apiKey,
         "container.deploy",
         [["id", "in", prodContainerIds]],

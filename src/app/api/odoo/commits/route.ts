@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     }
 
     const commits = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "github.commit",
       [["version", "=", version]],

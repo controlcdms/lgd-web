@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     if ((body as any)?.base_version_tag_id) payload.base_version_tag_id = Number((body as any).base_version_tag_id);
 
     const result = await odooCallAsUser<{ ok: boolean; branch_id: number; branch_name: string }>(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "create.staging.modern",
       "create_from_api",

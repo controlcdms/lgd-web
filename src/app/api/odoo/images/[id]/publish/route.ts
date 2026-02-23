@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: any) {
     const body = await req.json();
     const resume = String((body as any)?.resume || "");
 
-    const newId = await odooCallAsUser<number>(rpcAuth.login, rpcAuth.apiKey, "doodba.tag", "create", [
+    const newId = await odooCallAsUser<number>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.tag", "create", [
       { template_id: templateId, resume },
     ]);
 

@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     };
 
     const result = await odooCallAsUser<{ ok: boolean; image_id: number }>(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "create.image.wizard",
       "create_from_api",

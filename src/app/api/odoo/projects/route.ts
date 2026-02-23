@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
     const tRepos0 = Date.now();
     const projects = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "server.repos",
       ["|", ["user_id", "=", odooUserId], ["owner_id", "=", odooUserId]],

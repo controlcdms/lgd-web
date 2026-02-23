@@ -89,16 +89,38 @@ export async function odooCall<T = Json>(
 }
 
 export async function odooCallAsUser<T = Json>(
-  login: string,
+  uid: number,
   apiKey: string,
   model: string,
   method: string,
   args: any[] = [],
   kwargs: Record<string, any> = {}
 ): Promise<T> {
-  if (!login || !apiKey) throw new Error("Missing user login/apiKey for Odoo call");
-  const session = await odooLoginWithCredentials(login, apiKey);
-  return odooExecuteKw<T>(session, apiKey, model, method, args, kwargs);
+  // IMPORTANT: GitHub-synced users may not have a usable Odoo password.
+  // For user-scoped calls, use execute_kw with (uid, apiKey) directly.
+  if (!uid || uid <= 0) throw new Error("Missing uid for user-scoped Odoo call");
+  if (!apiKey) throw new Error("Missing apiKey for user-scoped Odoo call");
+
+  const r = await fetch(`${ODOO_URL}/jsonrpc`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "call",
+      params: {
+        service: "object",
+        method: "execute_kw",
+        args: [ODOO_DB, uid, apiKey, model, method, args, kwargs],
+      },
+    }),
+    cache: "no-store",
+  });
+
+  const data = await r.json();
+  if (data?.error) {
+    throw new Error(data.error?.data?.message || data.error?.message || "Odoo RPC error");
+  }
+  return data.result as T;
 }
 
 export async function odooSearchRead(
@@ -117,7 +139,7 @@ export async function odooSearchRead(
 }
 
 export async function odooSearchReadAsUser(
-  login: string,
+  uid: number,
   apiKey: string,
   model: string,
   domain: any[],
@@ -126,7 +148,7 @@ export async function odooSearchReadAsUser(
   offset = 0,
   order = ""
 ) {
-  return odooCallAsUser<any[]>(login, apiKey, model, "search_read", [domain, fields], {
+  return odooCallAsUser<any[]>(uid, apiKey, model, "search_read", [domain, fields], {
     limit,
     offset,
     order,

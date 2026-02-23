@@ -20,7 +20,7 @@ const ALLOWED_DEPLOY_TYPES: DeployType[] = ["production_deploy", "staging_deploy
 async function ensureProjectAccessAsUser(req: Request, projectId: number) {
   const rpcAuth = await getOdooRpcAuth(req);
   if (!rpcAuth) return null;
-  const rows = await odooSearchReadAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", [["id", "=", projectId]], ["id"], 1);
+  const rows = await odooSearchReadAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", [["id", "=", projectId]], ["id"], 1);
   return rows?.[0] || null;
 }
 
@@ -60,7 +60,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
 
     if (deployType === "production_deploy") {
       const existing = await odooSearchReadAsUser(
-        rpcAuth.login,
+        rpcAuth.uid,
         rpcAuth.apiKey,
         "server.branches",
         [["repository_id", "=", repositoryId], ["name", "=", "production"]],
@@ -72,13 +72,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
       }
     }
 
-    const defaults = await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", "get_branch_create_defaults_api", [repositoryId, deployType]);
+    const defaults = await odooCallAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", "get_branch_create_defaults_api", [repositoryId, deployType]);
 
     const license_id = body?.license_id ?? (defaults as any)?.license?.id ?? false;
     const server_id = body?.server_id ?? (defaults as any)?.server?.id ?? false;
     const base_version_tag_id = body?.base_version_tag_id ?? (defaults as any)?.release?.id ?? false;
 
-    const res = await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", "create_branch_from_ui_api", [
+    const res = await odooCallAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", "create_branch_from_ui_api", [
       repositoryId,
       name,
       deployType,

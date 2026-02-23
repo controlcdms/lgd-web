@@ -10,7 +10,7 @@ type DeployType = (typeof ALLOWED)[number];
 async function ensureProjectAccessAsUser(req: Request, projectId: number) {
   const rpcAuth = await getOdooRpcAuth(req);
   if (!rpcAuth) return null;
-  const rows = await odooSearchReadAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", [["id", "=", projectId]], ["id"], 1);
+  const rows = await odooSearchReadAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", [["id", "=", projectId]], ["id"], 1);
   return rows?.[0] || null;
 }
 
@@ -48,7 +48,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ projectId: stri
 
     const deployType = deployTypeRaw as DeployType;
 
-    const defaults = await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.repos", "get_branch_create_defaults_api", [repositoryId, deployType]);
+    const defaults = await odooCallAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", "get_branch_create_defaults_api", [repositoryId, deployType]);
 
     return NextResponse.json({ ok: true, defaults });
   } catch (e: any) {

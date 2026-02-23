@@ -28,7 +28,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const body = await req.json().catch(() => ({}));
     const commitHash = String((body as any)?.commit || "").trim();
 
-    await odooCallAsUser<any>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "api_set_commit", [
+    await odooCallAsUser<any>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "api_set_commit", [
       imageId,
       commitHash,
       String(githubId || ""),

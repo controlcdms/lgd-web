@@ -21,7 +21,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     const tOdoo0 = Date.now();
     const releases = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "doodba.tag",
       [["doodba_template", "=", templateId]],

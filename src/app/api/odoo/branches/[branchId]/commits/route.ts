@@ -29,7 +29,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ branchId: strin
     const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") || 20)));
 
     const commits = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "branch.commits",
       [["branch_id", "=", id]],

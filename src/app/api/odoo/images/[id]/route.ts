@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     if (!rpcAuth) return NextResponse.json({ ok: false, error: "No odooApiKey in token (re-login required)" }, { status: 401 });
 
     const tOdoo0 = Date.now();
-    const img = await odooCallAsUser<any>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "api_get_visible_image", [
+    const img = await odooCallAsUser<any>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "api_get_visible_image", [
       imageId,
       String(githubId || ""),
       String(githubLogin || ""),

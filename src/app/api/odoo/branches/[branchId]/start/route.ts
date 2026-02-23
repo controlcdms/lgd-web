@@ -25,7 +25,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ branchId: stri
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
-    await odooCallAsUser(rpcAuth.login, rpcAuth.apiKey, "server.branches", "start_container", [[id]]);
+    await odooCallAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.branches", "start_container", [[id]]);
 
     return NextResponse.json({ ok: true, message: "Contenedor iniciado correctamente" });
   } catch (error: any) {

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     for (const id of containerIds) {
       try {
         await odooCallAsUser<any>(
-          rpcAuth.login,
+          rpcAuth.uid,
           rpcAuth.apiKey,
           "container.deploy",
           "action_set_release_and_rebuild",

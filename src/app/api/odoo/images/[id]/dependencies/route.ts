@@ -26,13 +26,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const { id } = await ctx.params;
     const templateId = idFromParam(id);
 
-    const rows = await odooCallAsUser<any[]>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "read", [[templateId], ["dependency_pip_ids", "dependencia_apt_ids"]]);
+    const rows = await odooCallAsUser<any[]>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "read", [[templateId], ["dependency_pip_ids", "dependencia_apt_ids"]]);
     const row = rows?.[0] || {};
     const pipIds: number[] = Array.isArray((row as any).dependency_pip_ids) ? (row as any).dependency_pip_ids : [];
     const aptIds: number[] = Array.isArray((row as any).dependencia_apt_ids) ? (row as any).dependencia_apt_ids : [];
 
-    const pip = pipIds.length ? await odooCallAsUser<any[]>(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.pip", "read", [pipIds, ["name"]]) : [];
-    const apt = aptIds.length ? await odooCallAsUser<any[]>(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.apt", "read", [aptIds, ["name"]]) : [];
+    const pip = pipIds.length ? await odooCallAsUser<any[]>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.dependency.pip", "read", [pipIds, ["name"]]) : [];
+    const apt = aptIds.length ? await odooCallAsUser<any[]>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.dependency.apt", "read", [aptIds, ["name"]]) : [];
 
     return NextResponse.json({
       ok: true,
@@ -60,14 +60,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const aptNames: string[] = Array.isArray((body as any)?.apt) ? (body as any).apt : [];
 
     const pipRows = pipNames.length
-      ? await odooCallAsUser<any[]>(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.pip", "search_read", [
+      ? await odooCallAsUser<any[]>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.dependency.pip", "search_read", [
           [["name", "in", pipNames]],
           ["id", "name"],
         ], { limit: 500 })
       : [];
 
     const aptRows = aptNames.length
-      ? await odooCallAsUser<any[]>(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.apt", "search_read", [
+      ? await odooCallAsUser<any[]>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.dependency.apt", "search_read", [
           [["name", "in", aptNames]],
           ["id", "name"],
         ], { limit: 500 })
@@ -76,7 +76,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const pipIds = pipRows.map((x) => (x as any).id);
     const aptIds = aptRows.map((x) => (x as any).id);
 
-    const ok = await odooCallAsUser<boolean>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "write", [
+    const ok = await odooCallAsUser<boolean>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "write", [
       [templateId],
       { dependency_pip_ids: [[6, 0, pipIds]], dependencia_apt_ids: [[6, 0, aptIds]] },
     ]);

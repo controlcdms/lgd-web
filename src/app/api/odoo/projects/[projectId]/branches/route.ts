@@ -9,7 +9,7 @@ async function ensureProjectAccessAsUser(req: Request, projectId: number) {
   if (!rpcAuth) return null;
 
   const rows = await odooSearchReadAsUser(
-    rpcAuth.login,
+    rpcAuth.uid,
     rpcAuth.apiKey,
     "server.repos",
     [["id", "=", projectId]],
@@ -53,7 +53,7 @@ export async function GET(
 
   const tBranches0 = Date.now();
   const branches = await odooSearchReadAsUser(
-    rpcAuth.login,
+    rpcAuth.uid,
     rpcAuth.apiKey,
     "server.branches",
     [["repository_id", "=", projectId], ["active", "=", true]],
@@ -86,7 +86,7 @@ export async function GET(
     if (containerIds.length) {
       const tContainers0 = Date.now();
       const containers = await odooSearchReadAsUser(
-        rpcAuth.login,
+        rpcAuth.uid,
         rpcAuth.apiKey,
         "container.deploy",
         [["id", "in", containerIds]],

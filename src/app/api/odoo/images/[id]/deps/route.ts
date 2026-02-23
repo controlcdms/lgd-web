@@ -15,7 +15,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     if (!Number.isFinite(templateId)) return NextResponse.json({ ok: false, error: "ID inválido" }, { status: 400 });
 
     const [tpl] = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "doodba.template",
       [["id", "=", templateId]],
@@ -24,8 +24,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     );
     if (!tpl) return NextResponse.json({ ok: false, error: "No existe" }, { status: 404 });
 
-    const pipCatalog = await odooSearchReadAsUser(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.pip", [], ["id", "name"], 500, 0, "name asc");
-    const aptCatalog = await odooSearchReadAsUser(rpcAuth.login, rpcAuth.apiKey, "doodba.dependency.apt", [], ["id", "name"], 500, 0, "name asc");
+    const pipCatalog = await odooSearchReadAsUser(rpcAuth.uid, rpcAuth.apiKey, "doodba.dependency.pip", [], ["id", "name"], 500, 0, "name asc");
+    const aptCatalog = await odooSearchReadAsUser(rpcAuth.uid, rpcAuth.apiKey, "doodba.dependency.apt", [], ["id", "name"], 500, 0, "name asc");
 
     return NextResponse.json({
       ok: true,
@@ -56,7 +56,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const pip_ids = Array.isArray((body as any)?.pip_ids) ? (body as any).pip_ids.map(Number).filter(Number.isFinite) : [];
     const apt_ids = Array.isArray((body as any)?.apt_ids) ? (body as any).apt_ids.map(Number).filter(Number.isFinite) : [];
 
-    await odooCallAsUser<boolean>(rpcAuth.login, rpcAuth.apiKey, "doodba.template", "write", [
+    await odooCallAsUser<boolean>(rpcAuth.uid, rpcAuth.apiKey,  "doodba.template", "write", [
       [templateId],
       { dependency_pip_ids: [[6, 0, pip_ids]], dependencia_apt_ids: [[6, 0, apt_ids]] },
     ]);

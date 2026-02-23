@@ -9,12 +9,13 @@ export async function requireOdooUserId() {
   return odooUserId;
 }
 
-export async function getOdooRpcAuth(req: Request): Promise<{ login: string; apiKey: string } | null> {
+export async function getOdooRpcAuth(req: Request): Promise<{ uid: number; login: string; apiKey: string } | null> {
   const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
+  const uid = Number((token as any)?.odooUserId || 0) || 0;
   const login = String((token as any)?.odooLogin || (token as any)?.githubLogin || "").trim();
   const apiKey = String((token as any)?.odooApiKey || "").trim();
-  if (!login || !apiKey) return null;
-  return { login, apiKey };
+  if (!uid || !apiKey) return null;
+  return { uid, login, apiKey };
 }
 
 export async function ensureBranchAccessAsUser(req: Request, branchId: number) {
@@ -22,7 +23,7 @@ export async function ensureBranchAccessAsUser(req: Request, branchId: number) {
   if (!rpcAuth) return null;
 
   const rows = await odooSearchReadAsUser(
-    rpcAuth.login,
+    rpcAuth.uid,
     rpcAuth.apiKey,
     "server.branches",
     [["id", "=", branchId], ["repository_id", "!=", false]],

@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     ];
 
     const rows = await odooSearchReadAsUser(
-      rpcAuth.login,
+      rpcAuth.uid,
       rpcAuth.apiKey,
       "doodba.template",
       domain,
