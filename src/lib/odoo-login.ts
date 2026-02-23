@@ -23,7 +23,11 @@ export async function odooLoginCookie(): Promise<string> {
     cache: "no-store",
   });
 
-  const setCookie = r.headers.get("set-cookie");
+  // NOTE: In Node/undici fetch, `headers.get('set-cookie')` is not reliable.
+  // Use getSetCookie() when available.
+  const setCookies = (r.headers as any).getSetCookie?.() as string[] | undefined;
+  const setCookie = setCookies?.[0] || r.headers.get("set-cookie");
+
   if (!setCookie) {
     const text = await r.text();
     throw new Error("Odoo auth: missing set-cookie :: " + text.slice(0, 500));

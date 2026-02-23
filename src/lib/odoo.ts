@@ -22,7 +22,11 @@ async function odooLoginWithCredentials(login: string, secret: string): Promise<
     cache: "no-store",
   });
 
-  const setCookie = r.headers.get("set-cookie");
+  // NOTE: In Node/undici fetch, `headers.get('set-cookie')` is not reliable.
+  // Use getSetCookie() when available.
+  const setCookies = (r.headers as any).getSetCookie?.() as string[] | undefined;
+  const setCookie = setCookies?.[0] || r.headers.get("set-cookie");
+
   if (!setCookie) {
     const text = await r.text();
     console.error("AUTH RESPONSE:", text);
