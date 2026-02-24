@@ -1,0 +1,22 @@
+services:
+  lgd-web:
+    image: node:24-bullseye
+    container_name: lgd-web
+    working_dir: /app
+    command: bash -lc "npm ci --include=dev && npm run build && NODE_ENV=production npm run start"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    env_file:
+      - .env.production
+    volumes:
+      - ./:/app
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - satelite_default
+
+networks:
+  satelite_default:
+    external: true
