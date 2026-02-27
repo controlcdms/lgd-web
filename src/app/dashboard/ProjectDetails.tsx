@@ -292,6 +292,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return () => window.clearInterval(t);
   }, [logsOpen, logsBranch?.id, logsAuto]);
 
+  const [createTraceId, setCreateTraceId] = useState<string | null>(null);
+
   // ✅ cargar defaults cuando se abre el modal o cambia el tipo
   useEffect(() => {
     if (!projectId) return;
@@ -304,6 +306,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     setBaseVersionName(null);
     setReleaseOptions([]);
     setSelectedReleaseId(null);
+    setCreateTraceId(null);
 
     const url =
       `/api/odoo/projects/${projectId}/branches/create-defaults` +
@@ -317,6 +320,10 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         return d;
       })
       .then((d) => {
+        // capture trace_id so create() call can reuse it in Odoo
+        const tid = (d as any)?.defaults?.trace_id || (d as any)?.trace_id;
+        if (tid) setCreateTraceId(String(tid));
+
         const baseName = d.defaults?.base_version?.name;
         setBaseVersionName(baseName ? String(baseName) : null);
 
@@ -406,6 +413,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           name,
           type_deploy: newType,
           base_version_tag_id: selectedReleaseId ? parseInt(selectedReleaseId, 10) : null,
+          trace_id: createTraceId,
         }),
       });
 
