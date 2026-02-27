@@ -13,6 +13,7 @@ type Body = {
   license_id?: number | null;
   server_id?: number | null;
   base_version_tag_id?: number | null;
+  trace_id?: string | null;
 };
 
 const ALLOWED_DEPLOY_TYPES: DeployType[] = ["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"];
@@ -78,11 +79,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
     const server_id = body?.server_id ?? (defaults as any)?.server?.id ?? false;
     const base_version_tag_id = body?.base_version_tag_id ?? (defaults as any)?.release?.id ?? false;
 
+    const trace_id = (typeof body?.trace_id === "string" ? body.trace_id : "") || (defaults as any)?.trace_id || null;
+
     const res = await odooCallAsUser(rpcAuth.uid, rpcAuth.apiKey, "server.repos", "create_branch_from_ui_api", [
       repositoryId,
       name,
       deployType,
-      { license_id, server_id, base_version_tag_id },
+      { license_id, server_id, base_version_tag_id, trace_id },
+      trace_id,
     ]);
 
     return NextResponse.json({ ok: true, result: res, used_defaults: { license_id, server_id, base_version_tag_id } });
