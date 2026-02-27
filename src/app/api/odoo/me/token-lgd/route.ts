@@ -90,15 +90,18 @@ export async function GET(req: Request) {
       }
     }
 
-    const resources = await odooSearchRead(
-      "server.resource",
-      [["user_id", "=", odooUserId]],
-      ["id", "name", "token_lgd"],
-      1
+    // Agent enrollment tokens are stored in Odoo as lgd.agent.token (multiple per user).
+    // Return a default token (create one if missing).
+    const tok = await (await import("@/lib/odoo")).odooCall<any>(
+      "res.users",
+      "get_or_create_lgd_agent_token",
+      [odooUserId]
     );
 
-    const resource = resources?.[0] ?? null;
-    if (!resource?.token_lgd) {
+    const token_lgd = (tok as any)?.token || null;
+    const tokenId = (tok as any)?.token_id || null;
+
+    if (!token_lgd) {
       return NextResponse.json(
         { ok: false, error: "Token LGD no disponible", odooUserId },
         { status: 404 }
@@ -107,8 +110,9 @@ export async function GET(req: Request) {
 
     const res = NextResponse.json({
       ok: true,
-      token_lgd: resource.token_lgd,
-      resourceId: resource.id,
+      token_lgd,
+      tokenId,
+      userId: odooUserId,
     });
     // Token is long-lived per user; cache in browser to avoid repeated Odoo hits.
     res.headers.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=86400");
