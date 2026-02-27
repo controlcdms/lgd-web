@@ -40,8 +40,8 @@ export async function POST(req: Request) {
     const result = await odooCallAsUser<{ ok: boolean; repository_id: number }>(
       rpcAuth.uid,
       rpcAuth.apiKey,
-      "create.repo.modern",
-      "create_from_api",
+      "server.repos",
+      "create_repo_from_ui_api",
       [payload]
     );
 
