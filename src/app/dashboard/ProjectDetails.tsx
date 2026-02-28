@@ -642,6 +642,27 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               📜 Logs
             </Button>
 
+            {b.type_deploy === "staging_deploy" ? (
+              <Button
+                size="xs"
+                variant="default"
+                className="bg-black/20 hover:bg-amber-900/40 hover:text-amber-100 border-white/10"
+                disabled={isBusy(b.id)}
+                onClick={() => {
+                  setConfirmMsg(
+                    `Restaurar “${b.name}” desde producción (próximamente).\n\nEsto se implementará en mimundoapp; por ahora el botón es solo UI.`
+                  );
+                  setConfirmAction(async () => {
+                    setError("Restore from production: aún no implementado (pendiente en mimundoapp)");
+                  });
+                  setConfirmOpen(true);
+                }}
+                title="Restaurar este staging desde la DB+filestore de producción (pendiente)"
+              >
+                ♻ Restore prod
+              </Button>
+            ) : null}
+
             <Button
               size="xs"
               variant="default"
