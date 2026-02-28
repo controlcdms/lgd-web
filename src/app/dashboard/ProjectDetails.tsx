@@ -523,6 +523,15 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           </div>
           <div className="text-xs text-white/50 mt-1 flex flex-wrap items-center gap-2 font-mono">
             <span className={statusColor}>● {b.container_status || "STOPPED"}</span>
+            {b.type_deploy ? (
+              <span className="text-white/30" title="type_deploy">
+                type: {b.type_deploy}
+              </span>
+            ) : (
+              <span className="text-amber-300/60" title="type_deploy faltante">
+                type: (missing)
+              </span>
+            )}
             {b.release_id ? (
               <span className="text-white/40">
                 release: {Array.isArray(b.release_id) ? b.release_id[1] : String(b.release_id)}
