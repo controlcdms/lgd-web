@@ -473,12 +473,28 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   }
 
   // Agrupamiento por entorno
+  // Algunos datos legacy usan type_deploy corto ("staging", "production", "testing", "local")
+  // En UI tratamos ambos como equivalentes.
+  const normalizeTypeDeploy = (t?: string | null) => {
+    const x = String(t || "").trim();
+    if (!x) return "";
+    const map: Record<string, string> = {
+      production: "production_deploy",
+      staging: "staging_deploy",
+      testing: "testing_deploy",
+      local: "local_deploy",
+    };
+    return map[x] || x;
+  };
+
   const groupedBranches = {
-    production: branches.filter((b) => b.type_deploy === "production_deploy"),
-    staging: branches.filter((b) => b.type_deploy === "staging_deploy"),
-    testing: branches.filter((b) => b.type_deploy === "testing_deploy"),
-    local: branches.filter((b) => b.type_deploy === "local_deploy"),
-    other: branches.filter((b) => !["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"].includes(b.type_deploy || "")),
+    production: branches.filter((b) => normalizeTypeDeploy(b.type_deploy) === "production_deploy"),
+    staging: branches.filter((b) => normalizeTypeDeploy(b.type_deploy) === "staging_deploy"),
+    testing: branches.filter((b) => normalizeTypeDeploy(b.type_deploy) === "testing_deploy"),
+    local: branches.filter((b) => normalizeTypeDeploy(b.type_deploy) === "local_deploy"),
+    other: branches.filter(
+      (b) => !["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"].includes(normalizeTypeDeploy(b.type_deploy) || "")
+    ),
   };
 
   const renderBranchGroup = (title: string, items: Branch[], colorClass: string) => {
@@ -651,7 +667,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               📜 Logs
             </Button>
 
-            {b.type_deploy === "staging_deploy" ? (
+            {normalizeTypeDeploy(b.type_deploy) === "staging_deploy" ? (
               <Button
                 size="xs"
                 variant="default"
