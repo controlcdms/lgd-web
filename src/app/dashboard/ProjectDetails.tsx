@@ -82,7 +82,6 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   // restore-prod modal
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [restoreBranch, setRestoreBranch] = useState<{ id: number; name: string } | null>(null);
-  const [restorePwd, setRestorePwd] = useState("");
   const [restoring, setRestoring] = useState(false);
 
   // commits modal
@@ -682,7 +681,6 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                 onClick={() => {
                   setError(null);
                   setRestoreBranch({ id: b.id, name: b.name });
-                  setRestorePwd("");
                   setRestoreOpen(true);
                 }}
                 title="Restaurar este staging desde la DB+filestore de producción (sobrescribe)"
@@ -851,15 +849,6 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             Es destructivo: reemplaza la base actual del staging.
           </Alert>
 
-          <TextInput
-            value={restorePwd}
-            onChange={(e) => setRestorePwd(e.currentTarget.value)}
-            label={<span className="text-xs uppercase text-white/50 font-bold">Master password (producción)</span>}
-            placeholder="••••••••"
-            type="password"
-            disabled={restoring}
-            classNames={{ input: "bg-white/5 border-white/10 text-white focus:border-amber-500/50" }}
-          />
 
           <Group justify="flex-end" mt="xs">
             <Button
@@ -879,12 +868,6 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               onClick={async () => {
                 const bid = restoreBranch?.id;
                 if (!bid) return;
-                const pwd = restorePwd.trim();
-                if (!pwd) {
-                  setError("Falta master password");
-                  return;
-                }
-
                 setRestoring(true);
                 setError(null);
                 try {
@@ -892,7 +875,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
-                    body: JSON.stringify({ restore_password: pwd }),
+                    body: JSON.stringify({ restore_password: null }),
                   });
                   const d = await r.json().catch(() => ({}));
                   if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
