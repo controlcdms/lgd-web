@@ -163,6 +163,7 @@ export async function odooCreate(model: string, values: Record<string, any>) {
   return odooCall<number>(model, "create", [values]);
 }
 
-export async function odooExecute(model: string, method: string, ids: number[]) {
-  return odooCall<any>(model, method, [ids]);
+export async function odooExecute(model: string, method: string, ids: number[], ...methodArgs: any[]) {
+  // execute_kw signature for object methods: (ids, *args)
+  return odooCall<any>(model, method, [ids, ...methodArgs]);
 }

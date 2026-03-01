@@ -79,6 +79,12 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [confirmMsg, setConfirmMsg] = useState<string>("");
   const [confirmAction, setConfirmAction] = useState<null | (() => void | Promise<void>)>(null);
 
+  // restore-prod modal
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [restoreBranch, setRestoreBranch] = useState<{ id: number; name: string } | null>(null);
+  const [restorePwd, setRestorePwd] = useState("");
+  const [restoring, setRestoring] = useState(false);
+
   // commits modal
   const [commitsOpen, setCommitsOpen] = useState(false);
   const [commitsBranch, setCommitsBranch] = useState<{ id: number; name: string } | null>(null);
@@ -674,15 +680,12 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                 className="bg-black/20 hover:bg-amber-900/40 hover:text-amber-100 border-white/10"
                 disabled={isBusy(b.id)}
                 onClick={() => {
-                  setConfirmMsg(
-                    `Restaurar “${b.name}” desde producción (próximamente).\n\nEsto se implementará en mimundoapp; por ahora el botón es solo UI.`
-                  );
-                  setConfirmAction(async () => {
-                    setError("Restore from production: aún no implementado (pendiente en mimundoapp)");
-                  });
-                  setConfirmOpen(true);
+                  setError(null);
+                  setRestoreBranch({ id: b.id, name: b.name });
+                  setRestorePwd("");
+                  setRestoreOpen(true);
                 }}
-                title="Restaurar este staging desde la DB+filestore de producción (pendiente)"
+                title="Restaurar este staging desde la DB+filestore de producción (sobrescribe)"
               >
                 ♻ Restore prod
               </Button>
@@ -815,6 +818,99 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             Confirm
           </Button>
         </Group>
+      </Modal>
+
+      <Modal
+        opened={restoreOpen}
+        onClose={() => {
+          if (restoring) return;
+          setRestoreOpen(false);
+        }}
+        title={
+          <span className="font-mono text-sm uppercase tracking-widest text-white/70">
+            Restore from production{restoreBranch ? ` · ${restoreBranch.name}` : ""}
+          </span>
+        }
+        centered
+        className="dark-modal"
+        styles={{
+          content: { backgroundColor: "#09090b", border: "1px solid rgba(255,255,255,0.1)" },
+          header: { backgroundColor: "#09090b" },
+          body: { backgroundColor: "#09090b" },
+        }}
+      >
+        <Stack gap="sm">
+          <Alert
+            color="amber"
+            title="Sobrescribe staging"
+            variant="light"
+            className="bg-amber-500/10 border border-amber-500/20 text-amber-100"
+          >
+            Esto restaurará <b>DB + filestore</b> desde <b>producción</b> hacia este <b>staging</b>.
+            <br />
+            Es destructivo: reemplaza la base actual del staging.
+          </Alert>
+
+          <TextInput
+            value={restorePwd}
+            onChange={(e) => setRestorePwd(e.currentTarget.value)}
+            label={<span className="text-xs uppercase text-white/50 font-bold">Master password (producción)</span>}
+            placeholder="••••••••"
+            type="password"
+            disabled={restoring}
+            classNames={{ input: "bg-white/5 border-white/10 text-white focus:border-amber-500/50" }}
+          />
+
+          <Group justify="flex-end" mt="xs">
+            <Button
+              variant="default"
+              className="bg-transparent border-white/10 text-white/60 hover:text-white"
+              onClick={() => {
+                if (restoring) return;
+                setRestoreOpen(false);
+              }}
+              disabled={restoring}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="amber"
+              loading={restoring}
+              onClick={async () => {
+                const bid = restoreBranch?.id;
+                if (!bid) return;
+                const pwd = restorePwd.trim();
+                if (!pwd) {
+                  setError("Falta master password");
+                  return;
+                }
+
+                setRestoring(true);
+                setError(null);
+                try {
+                  const r = await fetch(`/api/odoo/branches/${bid}/restore-prod`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    cache: "no-store",
+                    body: JSON.stringify({ restore_password: pwd }),
+                  });
+                  const d = await r.json().catch(() => ({}));
+                  if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
+
+                  setRestoreOpen(false);
+                  // The job can be async; refresh list.
+                  reload();
+                } catch (e: any) {
+                  setError(e?.message || "Error restaurando");
+                } finally {
+                  setRestoring(false);
+                }
+              }}
+            >
+              Restore now
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <Modal
