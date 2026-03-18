@@ -96,7 +96,11 @@ export default function SignInPage() {
             </div>
 
             <button
-              onClick={() => signIn("github")}
+              onClick={() =>
+                signIn("github", {
+                  callbackUrl: `/${isEs ? "es" : "en"}/dashboard`,
+                })
+              }
               className="mt-4 w-full rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
             >
               {copy.cta}
