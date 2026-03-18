@@ -21,8 +21,8 @@
 
 body {
   background: var(--background);
-  /* Fondo radial sutil para dar profundidad */
-  background-image: radial-gradient(circle at 50% 0%, #18181b 0%, #09090b 70%);
+  /* Fondo radial sutil para dar profundidad + acento de tema */
+  background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, #09090b 70%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;
@@ -34,6 +34,19 @@ body {
 
 /* Scrollbar dark mode */
 ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}crollbar {
   width: 8px;
   height: 8px;
 }
