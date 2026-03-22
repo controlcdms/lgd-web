@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import UserBadge from "@/components/UserBadge";
 
 export default function DashboardLayout({
   children,
@@ -10,7 +11,10 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-zinc-900 md:flex">
       {/* Mobile top nav */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0c0c0e]/95 px-3 py-2 backdrop-blur md:hidden">
-        <div className="mb-2 text-xs font-bold tracking-wide text-white">LetsGoDeploy</div>
+        <div className="flex items-start gap-3">
+          <div className="mb-2 text-xs font-bold tracking-wide text-white">LetsGoDeploy</div>
+          <UserBadge />
+        </div>
         <nav className="flex gap-2 overflow-x-auto pb-1">
           <Link href="/dashboard" className="whitespace-nowrap rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80">
             📁 Proyectos

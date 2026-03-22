@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 const items = [
   { href: "/dashboard", key: "nav.projects", icon: "📁" },
@@ -21,6 +21,7 @@ function withLocalePrefix(pathname: string, href: string) {
 export default function Sidebar() {
   const pathname = usePathname();
   const t = useTranslations();
+  const { data: session } = useSession();
 
   const [token, setToken] = useState<string | null>(null);
   const [tokenErr, setTokenErr] = useState<string | null>(null);
@@ -60,6 +61,13 @@ export default function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const displayName =
+    session?.user?.name ||
+    // @ts-ignore
+    session?.user?.githubLogin ||
+    session?.user?.email ||
+    "";
+
   return (
     <aside className="hidden md:flex h-screen w-64 shrink-0 border-r border-white/5 bg-[#0c0c0e] relative flex-col">
       <div className="p-6">
@@ -69,6 +77,17 @@ export default function Sidebar() {
         </div>
         <div className="text-white/30 text-[10px] uppercase font-mono tracking-widest pl-5">Mission Control v2.0</div>
       </div>
+
+      {displayName ? (
+        <div className="mx-4 mb-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+          <div className="text-[10px] uppercase tracking-widest text-white/40">Usuario</div>
+          <div className="text-sm text-white/90 truncate">{displayName}</div>
+          {/* @ts-ignore */}
+          {session?.user?.githubLogin && displayName !== session?.user?.githubLogin ? (
+            <div className="text-xs text-white/50 truncate">@{session?.user?.githubLogin}</div>
+          ) : null}
+        </div>
+      ) : null}
 
       <nav className="px-3 py-2 flex-1 space-y-1">
         {items.map((it) => {
