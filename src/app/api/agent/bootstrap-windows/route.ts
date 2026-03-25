@@ -26,17 +26,21 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-# Ensure Ubuntu exists (best-effort)
+# Ensure a WSL distro exists (Ubuntu preferred)
 $distros = wsl -l -q 2>$null
-if ($distros -notmatch "Ubuntu") {
-  Write-Host "No se detectó Ubuntu en WSL. Instalando Ubuntu..." -ForegroundColor Yellow
+if (-not $distros) {
+  Write-Host "No hay distros WSL instaladas. Instalando Ubuntu..." -ForegroundColor Yellow
   wsl --install -d Ubuntu
   Write-Host "Reinicia el equipo y vuelve a ejecutar este comando." -ForegroundColor Yellow
   exit 1
 }
 
+# Pick Ubuntu if present; otherwise use first available distro
+$target = ($distros | Where-Object { $_ -match "Ubuntu" } | Select-Object -First 1)
+if (-not $target) { $target = $distros | Select-Object -First 1 }
+
 # Run Linux bootstrap inside WSL
-wsl -d Ubuntu -- bash -lc "set -e; \
+wsl -d $target -- bash -lc "set -e; \
   sudo apt update; \
   sudo apt install -y curl unzip python3 python3-venv docker.io docker-compose-plugin; \
   sudo service docker start || sudo systemctl enable --now docker || true; \
