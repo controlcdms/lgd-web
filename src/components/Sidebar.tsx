@@ -121,9 +121,10 @@ export default function Sidebar() {
           onClick={async () => {
             try {
               // Linux / Mac
+              const cacheBust = Date.now();
               const cmd = token
-                ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
-                : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
+                ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}&v=${cacheBust}" | bash`
+                : `curl -fsSL "${window.location.origin}/api/agent/bootstrap?v=${cacheBust}" | bash`;
               await navigator.clipboard.writeText(cmd);
             } catch {
               // ignore
@@ -145,9 +146,10 @@ export default function Sidebar() {
           onClick={async () => {
             try {
               // Windows (PowerShell)
+              const cacheBust = Date.now();
               const cmd = token
-                ? `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?token=${token}' | iex"`
-                : `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows' | iex"`;
+                ? `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?token=${token}&v=${cacheBust}' | iex"`
+                : `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?v=${cacheBust}' | iex"`;
               await navigator.clipboard.writeText(cmd);
             } catch {
               // ignore
