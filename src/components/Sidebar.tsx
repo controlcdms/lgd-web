@@ -120,9 +120,12 @@ export default function Sidebar() {
           type="button"
           onClick={async () => {
             try {
-              const isWindows =
-                typeof window !== "undefined" &&
-                /Windows/i.test(window.navigator.userAgent || "");
+              const isWindows = (() => {
+                if (typeof window === "undefined") return false;
+                const ua = window.navigator.userAgent || "";
+                const platform = (window.navigator as any)?.userAgentData?.platform || window.navigator.platform || "";
+                return /Windows/i.test(ua) || /Win/i.test(platform);
+              })();
 
               // Línea directa (sin modo seguro): descarga bootstrap y lo ejecuta.
               // Nota: el param se llama token pero el valor es token_lgd.
