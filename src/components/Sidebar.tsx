@@ -120,39 +120,48 @@ export default function Sidebar() {
           type="button"
           onClick={async () => {
             try {
-              const isWindows = (() => {
-                if (typeof window === "undefined") return false;
-                const ua = window.navigator.userAgent || "";
-                const platform = (window.navigator as any)?.userAgentData?.platform || window.navigator.platform || "";
-                return /Windows/i.test(ua) || /Win/i.test(platform);
-              })();
-
-              // Línea directa (sin modo seguro): descarga bootstrap y lo ejecuta.
-              // Nota: el param se llama token pero el valor es token_lgd.
-              const cmd = isWindows
-                ? token
-                  ? `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?token=${token}' | iex"`
-                  : `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows' | iex"`
-                : token
-                  ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
-                  : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
-
+              // Linux / Mac
+              const cmd = token
+                ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
+                : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
               await navigator.clipboard.writeText(cmd);
             } catch {
               // ignore
             }
           }}
           className="group w-full flex items-center justify-between rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-100 border border-blue-500/30 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
-          title={token ? "Copiar comando de instalación (incluye token_lgd)" : "Copiar comando de instalación"}
+          title={token ? "Copiar comando Linux (incluye token_lgd)" : "Copiar comando Linux"}
           disabled={tokenLoading}
         >
           <span className="flex items-center gap-2">
-            <span className="text-sm">⬇</span>
-            Copy install command
+            <span className="text-sm">🐧</span>
+            Copy Linux command
           </span>
-          <span className="text-[10px] text-blue-100/60">
-            {typeof window !== "undefined" && /Windows/i.test(window.navigator.userAgent || "") ? "powershell" : "curl|bash"}
+          <span className="text-[10px] text-blue-100/60">curl|bash</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              // Windows (PowerShell)
+              const cmd = token
+                ? `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?token=${token}' | iex"`
+                : `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows' | iex"`;
+              await navigator.clipboard.writeText(cmd);
+            } catch {
+              // ignore
+            }
+          }}
+          className="group w-full flex items-center justify-between rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-100 border border-blue-500/30 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
+          title={token ? "Copiar comando Windows (incluye token_lgd)" : "Copiar comando Windows"}
+          disabled={tokenLoading}
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">🪟</span>
+            Copy Windows command
           </span>
+          <span className="text-[10px] text-blue-100/60">powershell</span>
         </button>
 
         <button
