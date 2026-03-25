@@ -120,11 +120,20 @@ export default function Sidebar() {
           type="button"
           onClick={async () => {
             try {
+              const isWindows =
+                typeof window !== "undefined" &&
+                /Windows/i.test(window.navigator.userAgent || "");
+
               // Línea directa (sin modo seguro): descarga bootstrap y lo ejecuta.
               // Nota: el param se llama token pero el valor es token_lgd.
-              const cmd = token
-                ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
-                : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
+              const cmd = isWindows
+                ? token
+                  ? `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows?token=${token}' | iex"`
+                  : `powershell -ExecutionPolicy Bypass -Command "iwr -useb '${window.location.origin}/api/agent/bootstrap-windows' | iex"`
+                : token
+                  ? `curl -fsSL "${window.location.origin}/api/agent/bootstrap?token=${token}" | bash`
+                  : `curl -fsSL "${window.location.origin}/api/agent/bootstrap" | bash`;
+
               await navigator.clipboard.writeText(cmd);
             } catch {
               // ignore
@@ -138,7 +147,9 @@ export default function Sidebar() {
             <span className="text-sm">⬇</span>
             Copy install command
           </span>
-          <span className="text-[10px] text-blue-100/60">curl|bash</span>
+          <span className="text-[10px] text-blue-100/60">
+            {typeof window !== "undefined" && /Windows/i.test(window.navigator.userAgent || "") ? "powershell" : "curl|bash"}
+          </span>
         </button>
 
         <button

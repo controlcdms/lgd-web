@@ -1,0 +1,56 @@
+import { NextResponse } from "next/server";
+
+/**
+ * Windows (PowerShell) bootstrap script.
+ *
+ * Goal: allow a single-line PowerShell copy/paste to run the Linux bootstrap
+ * inside WSL, installing minimal dependencies on the WSL distro first.
+ */
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const token = (url.searchParams.get("token") || "").trim();
+
+  const origin = new URL(req.url).origin.replace(/\/$/, "");
+  const bootstrapUrl = token
+    ? `${origin}/api/agent/bootstrap?token=${encodeURIComponent(token)}`
+    : `${origin}/api/agent/bootstrap`;
+
+  const script = `# LGD Agent bootstrap (Windows)
+$ErrorActionPreference = "Stop"
+
+$bootstrapUrl = "${bootstrapUrl}"
+
+# WSL check
+if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
+  Write-Host "WSL no está instalado. Ejecuta: wsl --install (como Administrador) y reinicia." -ForegroundColor Red
+  exit 1
+}
+
+# Ensure Ubuntu exists (best-effort)
+$distros = wsl -l -q 2>$null
+if ($distros -notmatch "Ubuntu") {
+  Write-Host "No se detectó Ubuntu en WSL. Instalando Ubuntu..." -ForegroundColor Yellow
+  wsl --install -d Ubuntu
+  Write-Host "Reinicia el equipo y vuelve a ejecutar este comando." -ForegroundColor Yellow
+  exit 1
+}
+
+# Run Linux bootstrap inside WSL
+wsl -d Ubuntu -- bash -lc "set -e; \
+  sudo apt update; \
+  sudo apt install -y curl unzip python3 python3-venv docker.io docker-compose-plugin; \
+  sudo service docker start || sudo systemctl enable --now docker || true; \
+  curl -fsSL '$bootstrapUrl' | bash"
+
+Write-Host "Listo. En WSL ejecuta: cd ~/lgd-agent && bash init.sh && bash run.sh" -ForegroundColor Green
+`;
+
+  return new NextResponse(script, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Disposition": "attachment; filename=lgd-agent-bootstrap.ps1",
+      "Cache-Control": "no-store",
+    },
+  });
+}
