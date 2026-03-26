@@ -173,16 +173,11 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={async () => {
-            if (!token) {
-              const t = await loadToken();
-              if (t) await navigator.clipboard.writeText(t);
-              return;
-            }
-            const t = await loadToken(true);
+            const t = await loadToken(false);
             if (t) await navigator.clipboard.writeText(t);
           }}
           className="group w-full flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
-          title={token ? "Regenerar y copiar token_lgd" : "Cargar token_lgd"}
+          title={token ? "Copiar token_lgd" : "Cargar token_lgd"}
           disabled={tokenLoading}
         >
           <span className="flex items-center gap-2">
@@ -192,6 +187,23 @@ export default function Sidebar() {
           <span className="text-[10px] text-white/40">
             {token ? `${token.slice(0, 6)}…${token.slice(-4)}` : tokenErr ? "ERR" : ""}
           </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={async () => {
+            const t = await loadToken(true);
+            if (t) await navigator.clipboard.writeText(t);
+          }}
+          className="group w-full flex items-center justify-between rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
+          title="Regenerar token_lgd"
+          disabled={tokenLoading}
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-sm">♻</span>
+            Regenerar token
+          </span>
+          <span className="text-[10px] text-amber-200/60">rotate</span>
         </button>
 
         {tokenErr ? (
