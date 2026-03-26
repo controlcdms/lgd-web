@@ -8,34 +8,38 @@ export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const githubLogin = (session as any)?.user?.githubLogin ?? null;
+    let odooUserId = (session as any)?.user?.odooUserId ?? null;
 
-    if (!githubLogin) {
+    if (!githubLogin && !odooUserId) {
       return NextResponse.json(
         { ok: false, error: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    // Map Next user -> Odoo user by login.
-    // Nota: en lgd1 no existe res.users.github_login; el login suele coincidir con el githubLogin.
-    let users = await odooSearchRead(
-      "res.users",
-      [["login", "=", String(githubLogin)]],
-      ["id", "login", "git_username", "oauth_uid"],
-      1
-    );
-
-    // Fallback: algunos usuarios usan git_username como identificador humano.
-    if (!users?.length) {
-      users = await odooSearchRead(
+    // Prefer the Odoo user id already resolved during auth.
+    if (!odooUserId) {
+      // Map Next user -> Odoo user by login.
+      // Nota: en lgd1 no existe res.users.github_login; el login suele coincidir con el githubLogin.
+      let users = await odooSearchRead(
         "res.users",
-        [["git_username", "=", String(githubLogin)]],
+        [["login", "=", String(githubLogin)]],
         ["id", "login", "git_username", "oauth_uid"],
         1
       );
-    }
 
-    let odooUserId = users?.[0]?.id ?? null;
+      // Fallback: algunos usuarios usan git_username como identificador humano.
+      if (!users?.length) {
+        users = await odooSearchRead(
+          "res.users",
+          [["git_username", "=", String(githubLogin)]],
+          ["id", "login", "git_username", "oauth_uid"],
+          1
+        );
+      }
+
+      odooUserId = users?.[0]?.id ?? null;
+    }
 
     // Si el usuario no existe aún en Odoo, intentamos autocrearlo (best-effort)
     // usando los datos del JWT (accessToken, githubId).
