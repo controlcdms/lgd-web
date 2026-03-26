@@ -9,6 +9,8 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     const githubLogin = (session as any)?.user?.githubLogin ?? null;
     let odooUserId = (session as any)?.user?.odooUserId ?? null;
+    const url = new URL(req.url);
+    const rotate = url.searchParams.get("rotate") === "1";
 
     if (!githubLogin && !odooUserId) {
       return NextResponse.json(
@@ -96,9 +98,10 @@ export async function GET(req: Request) {
 
     // Agent enrollment tokens are stored in Odoo as lgd.agent.token (multiple per user).
     // Return a default token (create one if missing).
+    const method = rotate ? "rotate_lgd_agent_token" : "get_or_create_lgd_agent_token";
     const tok = await (await import("@/lib/odoo")).odooCall<any>(
       "res.users",
-      "get_or_create_lgd_agent_token",
+      method,
       [odooUserId]
     );
 
