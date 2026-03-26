@@ -27,11 +27,12 @@ export default function Sidebar() {
   const [tokenErr, setTokenErr] = useState<string | null>(null);
   const [tokenLoading, setTokenLoading] = useState(false);
 
-  const loadToken = async () => {
+  const loadToken = async (rotate = false) => {
     try {
       setTokenLoading(true);
       setTokenErr(null);
-      const r = await fetch("/api/odoo/me/token-lgd");
+      const url = rotate ? "/api/odoo/me/token-lgd?rotate=1" : "/api/odoo/me/token-lgd";
+      const r = await fetch(url);
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
       const tok = String(d.token_lgd || "");
@@ -41,9 +42,11 @@ export default function Sidebar() {
       } catch {
         // ignore
       }
+      return tok;
     } catch (e: any) {
       setToken(null);
       setTokenErr(e?.message || "No se pudo cargar token");
+      return null;
     } finally {
       setTokenLoading(false);
     }
@@ -170,13 +173,15 @@ export default function Sidebar() {
           type="button"
           onClick={async () => {
             if (!token) {
-              await loadToken();
+              const t = await loadToken();
+              if (t) await navigator.clipboard.writeText(t);
               return;
             }
-            await navigator.clipboard.writeText(token);
+            const t = await loadToken(true);
+            if (t) await navigator.clipboard.writeText(t);
           }}
           className="group w-full flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 px-3 py-2 text-xs font-mono transition-colors disabled:opacity-60"
-          title={token ? "Copiar token_lgd" : "Cargar token_lgd"}
+          title={token ? "Regenerar y copiar token_lgd" : "Cargar token_lgd"}
           disabled={tokenLoading}
         >
           <span className="flex items-center gap-2">
