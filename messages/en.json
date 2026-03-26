@@ -2,7 +2,8 @@
   "nav": {
     "projects": "Projects",
     "images": "Images",
-    "licenses": "Licenses"
+    "licenses": "Licenses",
+    "agent": "Agent"
   },
   "projects": {
     "title": "LGD Dashboard",

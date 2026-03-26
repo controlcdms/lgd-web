@@ -2,7 +2,8 @@
   "nav": {
     "projects": "Proyectos",
     "images": "Imágenes",
-    "licenses": "Licencias"
+    "licenses": "Licencias",
+    "agent": "Agente"
   },
   "projects": {
     "title": "Panel LGD",
