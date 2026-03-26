@@ -22,6 +22,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const t = useTranslations();
   const { data: session } = useSession();
+  const githubLogin = (session?.user as any)?.githubLogin as string | undefined;
+  const displayName = session?.user?.name || githubLogin || session?.user?.email || "";
 
   const [token, setToken] = useState<string | null>(null);
   const [tokenErr, setTokenErr] = useState<string | null>(null);
@@ -65,9 +67,6 @@ export default function Sidebar() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubLogin]);
-
-  const githubLogin = (session?.user as any)?.githubLogin as string | undefined;
-  const displayName = session?.user?.name || githubLogin || session?.user?.email || "";
 
   return (
     <aside className="hidden md:flex h-screen w-64 shrink-0 border-r border-white/5 bg-[#0c0c0e] relative flex-col">
