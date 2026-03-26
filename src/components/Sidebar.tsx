@@ -27,6 +27,8 @@ export default function Sidebar() {
   const [tokenErr, setTokenErr] = useState<string | null>(null);
   const [tokenLoading, setTokenLoading] = useState(false);
 
+  const tokenKey = (login?: string | null) => `lgd_token_lgd:${login || ""}`;
+
   const loadToken = async (rotate = false) => {
     try {
       setTokenLoading(true);
@@ -38,7 +40,7 @@ export default function Sidebar() {
       const tok = String(d.token_lgd || "");
       setToken(tok);
       try {
-        if (tok) window.localStorage.setItem("lgd_token_lgd", tok);
+        if (tok) window.localStorage.setItem(tokenKey(githubLogin), tok);
       } catch {
         // ignore
       }
@@ -54,15 +56,15 @@ export default function Sidebar() {
 
   useEffect(() => {
     // Token is long-lived per user. Avoid fetching on every navigation.
-    // Best-effort: restore from localStorage if present.
+    // Best-effort: restore from localStorage if present (per user).
     try {
-      const cached = window.localStorage.getItem("lgd_token_lgd") || "";
+      const cached = window.localStorage.getItem(tokenKey(githubLogin)) || "";
       if (cached) setToken(cached);
     } catch {
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [githubLogin]);
 
   const githubLogin = (session?.user as any)?.githubLogin as string | undefined;
   const displayName = session?.user?.name || githubLogin || session?.user?.email || "";

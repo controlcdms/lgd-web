@@ -19,7 +19,23 @@ export async function GET(req: Request) {
       );
     }
 
-    // Prefer the Odoo user id already resolved during auth.
+    // Prefer the Odoo user id already resolved during auth,
+    // but verify it matches the current githubLogin to avoid stale sessions.
+    if (odooUserId && githubLogin) {
+      const byId = await odooSearchRead(
+        "res.users",
+        [["id", "=", Number(odooUserId)]],
+        ["id", "login", "git_username"],
+        1
+      );
+      const row = byId?.[0];
+      const login = String(row?.login || "");
+      const gitUser = String(row?.git_username || "");
+      if (login !== String(githubLogin) && gitUser !== String(githubLogin)) {
+        odooUserId = null;
+      }
+    }
+
     if (!odooUserId) {
       // Map Next user -> Odoo user by login.
       // Nota: en lgd1 no existe res.users.github_login; el login suele coincidir con el githubLogin.
