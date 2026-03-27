@@ -194,17 +194,24 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 PANEL_URL="\${PANEL_URL:-\${URL:-}}"
+TOKEN_LGD="\${TOKEN_LGD:-\${TOKEN:-}}"
 
 if [[ -z "$PANEL_URL" ]]; then
   echo "ERROR: PANEL_URL vacío. Revisa tu .env" >&2
   exit 1
 fi
 
+TEMPLATE_BASE="$PANEL_URL/get_template_dc"
+Q=""
+if [[ -n "$TOKEN_LGD" ]]; then
+  Q="token_lgd=$TOKEN_LGD&"
+fi
+
 echo "-> Actualizando lgd.py desde $PANEL_URL"
-curl -fsSL "$PANEL_URL/get_template_dc?template_name=lgd.py.jinja" -o "$SCRIPT_DIR/lgd.py"
+curl -fsSL "$TEMPLATE_BASE?\${Q}template_name=lgd.py.jinja" -o "$SCRIPT_DIR/lgd.py"
 
 # Opcional: refrescar requirements si existe template
-if curl -fsSL "$PANEL_URL/get_template_dc?template_name=requirements.txt" -o "$SCRIPT_DIR/requirements.txt"; then
+if curl -fsSL "$TEMPLATE_BASE?\${Q}template_name=requirements.txt" -o "$SCRIPT_DIR/requirements.txt"; then
   echo "-> requirements.txt actualizado"
 else
   echo "-> No se pudo actualizar requirements.txt (se mantiene el local)"
