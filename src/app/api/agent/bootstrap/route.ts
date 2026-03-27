@@ -211,10 +211,14 @@ echo "-> Actualizando lgd.py desde $PANEL_URL"
 curl -fsSL "$TEMPLATE_BASE?\${Q}template_name=lgd.py.jinja" -o "$SCRIPT_DIR/lgd.py"
 
 # Opcional: refrescar requirements si existe template
-if curl -fsSL "$TEMPLATE_BASE?\${Q}template_name=requirements.txt" -o "$SCRIPT_DIR/requirements.txt"; then
+REQ_TMP="$SCRIPT_DIR/requirements.txt.tmp"
+REQ_CODE=$(curl -sSL -o "$REQ_TMP" -w "%{http_code}" "$TEMPLATE_BASE?\${Q}template_name=requirements.txt" || true)
+if [ "$REQ_CODE" = "200" ]; then
+  mv "$REQ_TMP" "$SCRIPT_DIR/requirements.txt"
   echo "-> requirements.txt actualizado"
 else
-  echo "-> No se pudo actualizar requirements.txt (se mantiene el local)"
+  rm -f "$REQ_TMP"
+  echo "-> requirements.txt no disponible (se mantiene el local)"
 fi
 
 # Actualizar dependencias si hay venv
