@@ -193,7 +193,7 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
   set +a
 fi
 
-PANEL_URL="${PANEL_URL:-${URL:-}}"
+PANEL_URL="\${PANEL_URL:-\${URL:-}}"
 
 if [[ -z "$PANEL_URL" ]]; then
   echo "ERROR: PANEL_URL vacío. Revisa tu .env" >&2
