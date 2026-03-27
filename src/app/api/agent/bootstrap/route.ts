@@ -221,7 +221,7 @@ else
 fi
 
 # Asegurar run.sh con puerto 5009
-cat > "$SCRIPT_DIR/run.sh" <<'SH'
+cat > "$SCRIPT_DIR/run.sh" <<'RUNSH'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -231,7 +231,7 @@ source env/bin/activate
 
 export PORT=5009
 python lgd.py
-SH
+RUNSH
 chmod +x "$SCRIPT_DIR/run.sh" || true
 
 # Reiniciar agente si estaba corriendo
