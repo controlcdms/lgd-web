@@ -46,7 +46,7 @@ wsl -d "$target" -- bash -lc "set -e; \
   sudo service docker start || sudo systemctl enable --now docker || true; \
   curl -fsSL '$bootstrapUrl' | bash"
 
-Write-Host "Listo. En WSL ejecuta: cd ~/lgd-agent && bash init.sh && bash run.sh" -ForegroundColor Green
+Write-Host "Listo. En WSL ejecuta: cd ~/lgd-agent && bash init.sh && bash run.sh (puerto 5009)" -ForegroundColor Green
 `;
 
   return new NextResponse(script, {
