@@ -183,7 +183,7 @@ cat > update.sh <<'SH'
 set -euo pipefail
 
 # Ruta del script (por si se ejecuta desde otro lado)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 
 # Cargar .env si existe
 if [ -f "$SCRIPT_DIR/.env" ]; then
