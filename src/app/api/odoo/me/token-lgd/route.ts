@@ -36,10 +36,12 @@ export async function GET(req: Request) {
       }
     }
 
+    let users: Array<{ id?: number; login?: string; git_username?: string; oauth_uid?: string }> = [];
+
     if (!odooUserId) {
       // Map Next user -> Odoo user by login.
       // Nota: en lgd1 no existe res.users.github_login; el login suele coincidir con el githubLogin.
-      let users = await odooSearchRead(
+      users = await odooSearchRead(
         "res.users",
         [["login", "=", String(githubLogin)]],
         ["id", "login", "git_username", "oauth_uid"],
