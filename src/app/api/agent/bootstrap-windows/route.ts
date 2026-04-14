@@ -10,10 +10,15 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const token = (url.searchParams.get("token") || "").trim();
 
-  const origin = new URL(req.url).origin.replace(/\/$/, "");
+  const panelBase = (
+    process.env.LGD_PANEL_NEXT_URL ||
+    process.env.NEXTAUTH_URL ||
+    new URL(req.url).origin
+  ).replace(/\/$/, "");
+
   const bootstrapUrl = token
-    ? `${origin}/api/agent/bootstrap?token=${encodeURIComponent(token)}`
-    : `${origin}/api/agent/bootstrap`;
+    ? `${panelBase}/api/agent/bootstrap?token=${encodeURIComponent(token)}`
+    : `${panelBase}/api/agent/bootstrap`;
 
   const script = `# LGD Agent bootstrap (Windows)
 $ErrorActionPreference = "Stop"
