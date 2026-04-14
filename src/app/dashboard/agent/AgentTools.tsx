@@ -10,6 +10,11 @@ export default function AgentTools() {
   const [token, setToken] = useState<string | null>(null);
   const [tokenErr, setTokenErr] = useState<string | null>(null);
   const [tokenLoading, setTokenLoading] = useState(false);
+  const [registryHost, setRegistryHost] = useState<string>("registry.letsgodeploy.com");
+  const [registryUser, setRegistryUser] = useState<string>("");
+  const [registryPass, setRegistryPass] = useState<string>("");
+  const [registryErr, setRegistryErr] = useState<string | null>(null);
+  const [registryLoading, setRegistryLoading] = useState(false);
 
   const tokenKey = (login?: string | null) => `lgd_token_lgd:${login || ""}`;
 
@@ -48,6 +53,34 @@ export default function AgentTools() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubLogin]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadRegistryCreds = async () => {
+      try {
+        setRegistryLoading(true);
+        setRegistryErr(null);
+        const r = await fetch("/api/odoo/me/registry-creds", { cache: "no-store" });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
+        if (!cancelled) {
+          setRegistryHost(String(d.registry || "registry.letsgodeploy.com"));
+          setRegistryUser(String(d.username || ""));
+          setRegistryPass(String(d.password || ""));
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setRegistryErr(e?.message || "No se pudo cargar credenciales de registry");
+        }
+      } finally {
+        if (!cancelled) setRegistryLoading(false);
+      }
+    };
+    loadRegistryCreds();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-[#0c0c0e] p-6">
@@ -56,6 +89,57 @@ export default function AgentTools() {
           <p className="text-xs text-white/40 font-mono mt-1">
             Comandos para descargar e instalar el agente local.
           </p>
+        </div>
+
+        <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100 space-y-3">
+          <div>
+            <div className="font-semibold">Antes del primer deploy local</div>
+            <div className="mt-1 text-amber-100/80">
+              Si el proyecto usa imágenes privadas, inicia sesión una vez en el registry desde tu máquina.
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/70">Registry</div>
+              <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-[11px] text-amber-50 select-all break-all">
+                {registryHost}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/70">Usuario</div>
+              <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-[11px] text-amber-50 select-all break-all">
+                {registryLoading ? "Cargando..." : registryUser || "No disponible"}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/70">Clave</div>
+            <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-[11px] text-amber-50 select-all break-all">
+              {registryLoading ? "Cargando..." : registryPass || "No disponible"}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/70">Linux / macOS</div>
+            <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-[11px] text-amber-50 select-all break-all">
+              {`docker login ${registryHost}${registryUser ? ` -u ${registryUser}` : ""}`}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/70">Windows PowerShell</div>
+            <div className="rounded-lg bg-black/30 px-3 py-2 font-mono text-[11px] text-amber-50 select-all break-all">
+              {`docker login ${registryHost}${registryUser ? ` -u ${registryUser}` : ""}`}
+            </div>
+          </div>
+
+          {registryErr ? (
+            <div className="text-[10px] text-rose-200/80 font-mono">
+              {registryErr}
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

@@ -1,26 +1,12 @@
-services:
-  lgd-web:
-    image: node:24-bullseye
-    container_name: lgd-web
-    working_dir: /app
-    command: bash -lc "npm install && npm run dev -- -p 3000"
-    environment:
-      NODE_ENV: development
-      PORT: "3000"
-    env_file:
-      - .env.local
-    volumes:
-      - ./:/app
-      - lgd_web_node_modules:/app/node_modules
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-    networks:
-      - satelite_default
-
-volumes:
-  lgd_web_node_modules:
-
-networks:
-  satelite_default:
-    external: true
+# Intentionally left as a non-runnable placeholder.
+#
+# Use an explicit compose file instead of relying on docker-compose.yaml by default:
+#
+# Production panel:
+#   docker compose -f docker-compose.panel.yml up -d --build
+#
+# Staging/dev:
+#   docker compose -f docker-compose.staging.yml up -d --build
+#
+# This avoids mixing production and staging behavior by accident.
+services: {}

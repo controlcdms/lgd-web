@@ -13,10 +13,18 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const token = (url.searchParams.get("token") || "").trim();
 
-  // Panel real de Odoo (no el dashboard Next). Si no se setea, caería en NEXT_PUBLIC_BASE_URL y rompería /download/tunnelkey.
+  // Panel real de Odoo, desde donde se sirven los templates legacy como get_template_dc.
+  // No debe apuntar al dashboard Next.
   const panelUrl = (
     process.env.LGD_PANEL_ODOO_URL ||
     "https://panel.letsgodeploy.com"
+  ).replace(/\/$/, "");
+
+  // Host público del dashboard Next, usado solo para construir URLs del propio endpoint bootstrap.
+  const panelBase = (
+    process.env.LGD_PANEL_NEXT_URL ||
+    process.env.NEXTAUTH_URL ||
+    new URL(req.url).origin
   ).replace(/\/$/, "");
 
   // NOTE: this is a Bash script inside a JS template literal.
@@ -26,9 +34,12 @@ set -euo pipefail
 
 PANEL_URL="${panelUrl}"
 TOKEN_LGD="${token}"
+REGISTRY_HOST="${process.env.LGD_REGISTRY_HOST || "registry.letsgodeploy.com"}"
+REGISTRY_USER="${process.env.LGD_REGISTRY_USER || process.env.REGISTRY_USER || process.env.USER_DOCKERHUB || ""}"
+REGISTRY_PASS="${process.env.LGD_REGISTRY_PASS || process.env.REGISTRY_PASS || process.env.PASS_DOCKERHUB || process.env.PASS_DOCKERFILE || ""}"
 
 if [[ -z "$PANEL_URL" ]]; then
-  echo "ERROR: PANEL_URL vacío (NEXT_PUBLIC_BASE_URL/NEXTAUTH_URL no configurado en el servidor)" >&2
+  echo "ERROR: PANEL_URL vacío (LGD_PANEL_ODOO_URL no configurado en el servidor)" >&2
   exit 1
 fi
 
@@ -62,6 +73,12 @@ cat > .env <<EOF
 PANEL_URL=$PANEL_URL
 TOKEN_LGD=$TOKEN_LGD
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD_GEN
+REGISTRY=$REGISTRY_HOST
+REGISTRY_HOST=$REGISTRY_HOST
+REGISTRY_USER=$REGISTRY_USER
+REGISTRY_PASS=$REGISTRY_PASS
+USER_DOCKERHUB=$REGISTRY_USER
+PASS_DOCKERHUB=$REGISTRY_PASS
 # compat legacy
 URL=$PANEL_URL
 TOKEN=$TOKEN_LGD
@@ -265,9 +282,13 @@ SH
 chmod +x update.sh || true
 
 echo
+echo "IMPORTANTE: si el proyecto usa imágenes privadas, primero inicia sesión en el registry:"
+echo "  docker login registry.letsgodeploy.com"
+echo
 echo "Listo. Próximos pasos:"
 echo "  1) Ejecuta: bash init.sh"
-echo "  2) (Luego) Ejecuta: bash run.sh  (usa puerto 5009)"
+echo "  2) Si tu proyecto usa imágenes privadas, ejecuta: docker login registry.letsgodeploy.com"
+echo "  3) (Luego) Ejecuta: bash run.sh  (usa puerto 5009)"
 `;
 
   return new NextResponse(script, {
