@@ -34,7 +34,7 @@ type DeployType =
   | "local_deploy"
   | "production_deploy";
 
-type ActionKind = "start" | "stop" | "expire";
+type ActionKind = "start" | "stop" | "expire" | "enable-https";
 
 type DefaultsResp = {
   ok: boolean;
@@ -434,7 +434,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
-  async function runAction(branchId: number, action: ActionKind, skipConfirm = false) {
+  async function runAction(branchId: number, action: ActionKind, skipConfirm = false, containerId?: number) {
     if (action === "expire" && !skipConfirm) {
       openConfirm("¿Seguro que quieres expirar esta rama?", () => runAction(branchId, action, true));
       return;
@@ -444,7 +444,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     setError(null);
 
     try {
-      const r = await fetch(`/api/odoo/branches/${branchId}/${action}`, {
+      const endpoint = action === "enable-https"
+        ? `/api/odoo/containers/${containerId}/enable-https`
+        : `/api/odoo/branches/${branchId}/${action}`;
+
+      const r = await fetch(endpoint, {
         method: "POST",
         cache: "no-store",
       });
@@ -671,6 +675,20 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             >
               📜 Logs
             </Button>
+
+            {Array.isArray(b.container_id) && Number(b.container_id[0]) > 0 ? (
+              <Button
+                size="xs"
+                variant="default"
+                className="bg-black/20 hover:bg-violet-900/40 hover:text-violet-100 border-white/10"
+                loading={busy[b.id] === "enable-https"}
+                disabled={isBusy(b.id)}
+                onClick={() => runAction(b.id, "enable-https", true, Number(b.container_id[0]))}
+                title="Activar HTTPS en Nginx para este contenedor"
+              >
+                🔒 HTTPS
+              </Button>
+            ) : null}
 
             {normalizeTypeDeploy(b.type_deploy) === "staging_deploy" ? (
               <Button
