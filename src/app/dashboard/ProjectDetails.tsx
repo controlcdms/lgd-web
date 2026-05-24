@@ -36,6 +36,14 @@ type DeployType =
 
 type ActionKind = "start" | "stop" | "expire" | "enable-https";
 
+type ConfirmPayload = {
+  title?: string;
+  message: string;
+  details?: string[];
+  severity?: "warning" | "danger";
+  confirmLabel?: string;
+};
+
 type DefaultsResp = {
   ok: boolean;
   error?: string;
@@ -76,7 +84,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
   // nicer confirm modal (avoid browser confirm)
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMsg, setConfirmMsg] = useState<string>("");
+  const [confirmData, setConfirmData] = useState<ConfirmPayload>({ message: "" });
   const [confirmAction, setConfirmAction] = useState<null | (() => void | Promise<void>)>(null);
 
   // restore-prod modal
@@ -99,8 +107,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [logsText, setLogsText] = useState<string>("");
   const [logsAuto, setLogsAuto] = useState(true);
 
-  const openConfirm = (msg: string, action: () => void | Promise<void>) => {
-    setConfirmMsg(msg);
+  const openConfirm = (payload: string | ConfirmPayload, action: () => void | Promise<void>) => {
+    setConfirmData(typeof payload === "string" ? { message: payload } : payload);
     setConfirmAction(() => action);
     setConfirmOpen(true);
   };
@@ -434,9 +442,9 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
-  async function runAction(branchId: number, action: ActionKind, skipConfirm = false, containerId?: number) {
+  async function runAction(branchId: number, action: ActionKind, skipConfirm = false, containerId?: number, branch?: Branch) {
     if (action === "expire" && !skipConfirm) {
-      openConfirm("¿Seguro que quieres expirar esta rama?", () => runAction(branchId, action, true));
+      openConfirm(buildExpireConfirm(branch), () => runAction(branchId, action, true, containerId, branch));
       return;
     }
 
@@ -494,6 +502,50 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       local: "local_deploy",
     };
     return map[x] || x;
+  };
+
+  const buildExpireConfirm = (branch?: Branch): ConfirmPayload => {
+    const deployType = normalizeTypeDeploy(branch?.type_deploy);
+    const branchName = branch?.name || "esta rama";
+
+    if (deployType === "production_deploy") {
+      return {
+        title: "⚠️ WARNING: estás por eliminar producción",
+        message: `Vas a expirar ${branchName}. Este proceso sacará esta rama de circulación y debe asumirse como una eliminación seria de producción.`,
+        details: [
+          "Se marcará la rama como expirada y dejará de aparecer entre las ramas activas.",
+          "Se eliminará el dominio asociado a producción.",
+          "Tomalo como un proceso NO REVERSIBLE.",
+        ],
+        severity: "danger",
+        confirmLabel: "Sí, expirar producción",
+      };
+    }
+
+    if (deployType === "local_deploy") {
+      return {
+        title: "Confirmar expiración",
+        message: `Vas a expirar ${branchName}.`,
+        details: [
+          "La rama dejará de aparecer en el listado activo.",
+          "En local esto se toma como desactivación de la rama en Odoo.",
+        ],
+        severity: "warning",
+        confirmLabel: "Expirar rama",
+      };
+    }
+
+    return {
+      title: "Confirmar expiración",
+      message: `Vas a expirar ${branchName}.`,
+      details: [
+        "La rama dejará de aparecer en el listado activo.",
+        "El proceso puede detener recursos y eliminar el dominio asociado.",
+        "Tomalo como una acción no reversible.",
+      ],
+      severity: "warning",
+      confirmLabel: "Expirar rama",
+    };
   };
 
   const groupedBranches = {
@@ -713,7 +765,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               className="bg-black/20 hover:bg-red-900/40 hover:text-red-200 border-white/10"
               loading={busy[b.id] === "expire"}
               disabled={isBusy(b.id)}
-              onClick={() => runAction(b.id, "expire")}
+              onClick={() => runAction(b.id, "expire", false, undefined, b)}
             >
               🗑 Kill
             </Button>
@@ -802,7 +854,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       <Modal
         opened={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title={<span className="font-mono text-sm uppercase tracking-widest text-white/70">Confirm</span>}
+        title={<span className={`font-mono text-sm uppercase tracking-widest ${confirmData.severity === "danger" ? "text-red-300" : "text-white/70"}`}>{confirmData.title || "Confirm"}</span>}
         centered
         className="dark-modal"
         styles={{
@@ -811,7 +863,16 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           body: { backgroundColor: '#09090b' }
         }}
       >
-        <div className="text-sm text-white/80">{confirmMsg}</div>
+        <div className={`rounded-xl border p-4 ${confirmData.severity === "danger" ? "border-red-500/40 bg-red-950/30" : "border-amber-500/20 bg-amber-950/20"}`}>
+          <div className={`text-sm ${confirmData.severity === "danger" ? "text-red-100" : "text-white/85"}`}>{confirmData.message}</div>
+          {confirmData.details?.length ? (
+            <ul className={`mt-3 list-disc space-y-1 pl-5 text-xs ${confirmData.severity === "danger" ? "text-red-200/90" : "text-white/65"}`}>
+              {confirmData.details.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <Group justify="flex-end" mt="md">
           <Button
             variant="default"
@@ -821,7 +882,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             Cancel
           </Button>
           <Button
-            color="blue"
+            color={confirmData.severity === "danger" ? "red" : "blue"}
             onClick={async () => {
               setConfirmOpen(false);
               try {
@@ -831,7 +892,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               }
             }}
           >
-            Confirm
+            {confirmData.confirmLabel || "Confirm"}
           </Button>
         </Group>
       </Modal>
