@@ -56,6 +56,83 @@ type DefaultsResp = {
   };
 };
 
+type BranchStatusSnapshot = {
+  state: "running" | "partial" | "down" | "error" | "unknown";
+  label: string;
+  detail: string;
+  ps: string;
+  checkedAt: number;
+};
+
+function extractPsText(payload: any) {
+  if (typeof payload?.ps === "string") return payload.ps;
+  if (typeof payload?.result?.ps === "string") return payload.result.ps;
+  if (typeof payload?.output === "string") return payload.output;
+  return "";
+}
+
+function summarizeBranchStatus(payload: any): BranchStatusSnapshot {
+  const ps = extractPsText(payload);
+  const lines = ps
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const serviceLines = lines.filter((line) => !/^name\s+image\s+command/i.test(line));
+  const odooLine = serviceLines.find((line) => /odoo/i.test(line)) || "";
+  const dbLine = serviceLines.find((line) => /\bdb\b/i.test(line)) || "";
+
+  const odooUp = /\bodoo\b.*\bup\b/i.test(odooLine) || /\bodoo\b.*\bhealthy\b/i.test(odooLine);
+  const dbUp = /\bdb\b.*\bup\b/i.test(dbLine) || /\bdb\b.*\bhealthy\b/i.test(dbLine);
+  const odooDown = /\bodoo\b.*\b(exit|exited|dead|error|created)\b/i.test(odooLine);
+  const dbDown = /\bdb\b.*\b(exit|exited|dead|error|created)\b/i.test(dbLine);
+
+  let state: BranchStatusSnapshot["state"] = "unknown";
+  let label = "Sin datos";
+  let detail = "El satélite no devolvió contenedores suficientes para decidir.";
+
+  if (payload?.ok === false) {
+    state = "error";
+    label = "Error";
+    detail = String(payload?.error || "No se pudo consultar el satélite");
+  } else if (odooUp && dbUp) {
+    state = "running";
+    label = "Arriba";
+    detail = "Odoo y DB reportan Up en el satélite.";
+  } else if (odooUp || dbUp) {
+    state = "partial";
+    label = "Parcial";
+    detail = `Solo ${odooUp ? "Odoo" : "DB"} aparece arriba.`;
+  } else if (odooDown || dbDown || serviceLines.length > 0) {
+    state = "down";
+    label = "Caído";
+    detail = "El stack existe pero no quedó arriba.";
+  }
+
+  return {
+    state,
+    label,
+    detail,
+    ps,
+    checkedAt: Date.now(),
+  };
+}
+
+function checkedStatusClass(state?: BranchStatusSnapshot["state"]) {
+  switch (state) {
+    case "running":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+    case "partial":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-200";
+    case "down":
+      return "border-red-500/30 bg-red-500/10 text-red-200";
+    case "error":
+      return "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200";
+    default:
+      return "border-white/10 bg-white/5 text-white/55";
+  }
+}
+
 function validateBranchName(name: string) {
   const v = name.trim();
   if (!v) return "Ponle nombre a la rama";
@@ -71,6 +148,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedRunning, setConfirmedRunning] = useState<Record<number, boolean>>({});
+  const [statusByBranch, setStatusByBranch] = useState<Record<number, BranchStatusSnapshot>>({});
 
   // ✅ acciones por rama (SIN nulls)
   const [busy, setBusy] = useState<Partial<Record<number, ActionKind>>>({});
@@ -167,6 +245,52 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     }
   }
 
+  async function checkBranchStatus(branchId: number) {
+    setStatusByBranch((prev) => ({
+      ...prev,
+      [branchId]: {
+        state: "unknown",
+        label: "Consultando…",
+        detail: "Consultando estado real en el satélite…",
+        ps: prev[branchId]?.ps || "",
+        checkedAt: Date.now(),
+      },
+    }));
+
+    try {
+      const r = await fetch(`/api/satellite/branches/${branchId}/status`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j?.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
+
+      const summary = summarizeBranchStatus(j);
+      setStatusByBranch((prev) => ({ ...prev, [branchId]: summary }));
+
+      if (summary.state === "running") {
+        setConfirmedRunning((prev) => ({ ...prev, [branchId]: true }));
+      } else if (summary.state === "down" || summary.state === "partial") {
+        setConfirmedRunning((prev) => {
+          const next = { ...prev };
+          delete next[branchId];
+          return next;
+        });
+      }
+    } catch (e: any) {
+      setStatusByBranch((prev) => ({
+        ...prev,
+        [branchId]: {
+          state: "error",
+          label: "Error",
+          detail: e?.message || "No se pudo consultar el status",
+          ps: "",
+          checkedAt: Date.now(),
+        },
+      }));
+    }
+  }
+
   // defaults de Odoo para mostrar versión/release
   const [defaultsLoading, setDefaultsLoading] = useState(false);
   const [baseVersionName, setBaseVersionName] = useState<string | null>(null);
@@ -232,6 +356,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     // importantísimo: limpiar busy al cambiar de proyecto
     setBusy({});
     setConfirmedRunning({});
+    setStatusByBranch({});
 
     if (!projectId) {
       setBranches([]);
@@ -497,6 +622,16 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           delete next[branchId];
           return next;
         });
+        setStatusByBranch((prev) => ({
+          ...prev,
+          [branchId]: {
+            state: "down",
+            label: "Detenido",
+            detail: "Se ejecutó stop sobre la rama.",
+            ps: "",
+            checkedAt: Date.now(),
+          },
+        }));
       }
       if (action === "recover") {
         const result = await waitForSatelliteRecovery(branchId, 30000);
@@ -510,6 +645,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           setError(finalMessage);
         } else {
           setConfirmedRunning((prev) => ({ ...prev, [branchId]: true }));
+          await checkBranchStatus(branchId);
         }
       } else if (action === "start" || action === "stop") {
         const startedAt = Date.now();
@@ -617,6 +753,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   };
 
   const renderBranchCard = (b: Branch) => {
+    const checkedStatus = statusByBranch[b.id];
     const effectiveContainerStatus = confirmedRunning[b.id] ? "running" : b.container_status;
     const isRunning = effectiveContainerStatus === "running";
     const rawUrl = String(b.server_url_nginx || "").trim();
@@ -644,6 +781,14 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           </div>
           <div className="text-xs text-white/50 mt-1 flex flex-wrap items-center gap-2 font-mono">
             <span className={statusColor}>● {effectiveContainerStatus || "STOPPED"}</span>
+            {checkedStatus ? (
+              <span
+                className={`rounded-full border px-2 py-0.5 text-[10px] ${checkedStatusClass(checkedStatus.state)}`}
+                title={checkedStatus.ps || checkedStatus.detail}
+              >
+                status: {checkedStatus.label}
+              </span>
+            ) : null}
             {b.type_deploy ? (
               <span className="text-white/30" title="type_deploy">
                 type: {b.type_deploy}
@@ -740,6 +885,17 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                 🌐 Abrir
               </Button>
             ) : null}
+
+            <Button
+              size="xs"
+              variant="default"
+              className="bg-black/20 hover:bg-white/10 hover:text-white border-white/10"
+              disabled={isBusy(b.id)}
+              onClick={() => checkBranchStatus(b.id)}
+              title={checkedStatus?.detail || "Consultar estado real del stack en el satélite"}
+            >
+              {checkedStatus?.label === "Consultando…" ? "⏳ Status" : "📡 Status"}
+            </Button>
 
             <Button
               size="xs"
