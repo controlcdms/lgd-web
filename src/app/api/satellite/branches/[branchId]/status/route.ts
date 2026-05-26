@@ -10,11 +10,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ branc
 
   try {
     cfg = await getSatConfigFromBranch(id);
-    const j = await satFetchJson(cfg, "/stack/status", { stack: cfg.stack });
-    return NextResponse.json({ ok: true, config: { stack: cfg.stack, baseUrl: cfg.baseUrl }, ...j });
+    const j = await satFetchJson(cfg, "/stack/status", { stack: cfg.stack, deploy_type: cfg.deployType });
+    return NextResponse.json({ ok: true, config: { stack: cfg.stack, baseUrl: cfg.baseUrl, deployType: cfg.deployType }, ...j });
   } catch (e: any) {
     // Include config we resolved (if any) to make debugging stack/url issues easier.
-    const config = cfg ? { stack: cfg.stack, baseUrl: cfg.baseUrl } : undefined;
+    const config = cfg ? { stack: cfg.stack, baseUrl: cfg.baseUrl, deployType: cfg.deployType } : undefined;
     return NextResponse.json({ ok: false, error: e?.message || String(e), config }, { status: 500 });
   }
 }

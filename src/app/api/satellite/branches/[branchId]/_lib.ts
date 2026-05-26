@@ -5,6 +5,7 @@ export type SatConfig = {
   baseUrl: string;
   token: string;
   resourceId: number;
+  deployType: string;
 };
 
 function cleanBaseUrl(url: string) {
@@ -19,10 +20,11 @@ function cleanBaseUrl(url: string) {
 
 export async function getSatConfigFromBranch(branchId: number): Promise<SatConfig> {
   // server.branches(container_id -> container.deploy)
-  const branches = await odooCall<any[]>("server.branches", "read", [[branchId], ["container_id"]]);
+  const branches = await odooCall<any[]>("server.branches", "read", [[branchId], ["container_id", "type_deploy"]]);
   const b = branches?.[0];
   const containerId = Array.isArray(b?.container_id) ? b.container_id[0] : null;
   if (!containerId) throw new Error("Branch has no container_id");
+  const deployType = String(b?.type_deploy || "production").trim() || "production";
 
   // container.deploy(stack + resource_deploy_id)
   // Different DBs use different fields for the compose-stack name.
@@ -50,7 +52,7 @@ export async function getSatConfigFromBranch(branchId: number): Promise<SatConfi
   if (!baseUrl) throw new Error("server.resource.url_webhook_alternative missing");
   if (!token) throw new Error("server.resource.token_server missing");
 
-  return { stack, baseUrl, token, resourceId };
+  return { stack, baseUrl, token, resourceId, deployType };
 }
 
 export async function satFetchJson(config: SatConfig, path: string, body: any) {
