@@ -502,8 +502,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         const result = await waitForSatelliteRecovery(branchId, 30000);
         reload();
         if (!result.ok) {
-          const message = d?.result?.message || "Se envió la recuperación, pero todavía no hay confirmación real desde el satélite.";
-          setError(message);
+          const backendHint = typeof d?.result?.message === "string" ? d.result.message : "";
+          const pendingPrefix = backendHint ? `${backendHint} ` : "";
+          setError(`${pendingPrefix}Todavía no hay confirmación real desde el satélite de que Odoo haya quedado levantado.`.trim());
+        } else {
+          setConfirmedRunning((prev) => ({ ...prev, [branchId]: true }));
         }
       } else if (action === "start" || action === "stop") {
         const startedAt = Date.now();
