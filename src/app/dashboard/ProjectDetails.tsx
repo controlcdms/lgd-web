@@ -34,7 +34,7 @@ type DeployType =
   | "local_deploy"
   | "production_deploy";
 
-type ActionKind = "start" | "stop" | "expire" | "enable-https";
+type ActionKind = "recover" | "start" | "stop" | "expire" | "enable-https";
 
 type ConfirmPayload = {
   title?: string;
@@ -70,6 +70,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmedRunning, setConfirmedRunning] = useState<Record<number, boolean>>({});
 
   // ✅ acciones por rama (SIN nulls)
   const [busy, setBusy] = useState<Partial<Record<number, ActionKind>>>({});
@@ -202,10 +203,35 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       .finally(() => setLoading(false));
   };
 
+
+  async function waitForSatelliteRecovery(branchId: number, timeoutMs = 30000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      try {
+        const r = await fetch(`/api/satellite/branches/${branchId}/status`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j?.ok !== false) {
+          const ps = typeof j?.ps === "string" ? j.ps : "";
+          if (/^.*odoo.*Up.*$/im.test(ps)) {
+            return { ok: true, ps };
+          }
+        }
+      } catch {
+        // ignore transient polling errors
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    }
+    return { ok: false, timeout: true };
+  }
+
   // ✅ cargar ramas al cambiar projectId
   useEffect(() => {
     // importantísimo: limpiar busy al cambiar de proyecto
     setBusy({});
+    setConfirmedRunning({});
 
     if (!projectId) {
       setBranches([]);
@@ -464,13 +490,24 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
 
-      // The backend action can be async (stop/start may take a bit).
-      // Refresh immediately, then keep refreshing for a short period so the UI updates.
       reload();
-      if (action === "start" || action === "stop") {
+      if (action === "stop") {
+        setConfirmedRunning((prev) => {
+          const next = { ...prev };
+          delete next[branchId];
+          return next;
+        });
+      }
+      if (action === "recover") {
+        const result = await waitForSatelliteRecovery(branchId, 30000);
+        reload();
+        if (!result.ok) {
+          const message = d?.result?.message || "Se envió la recuperación, pero todavía no hay confirmación real desde el satélite.";
+          setError(message);
+        }
+      } else if (action === "start" || action === "stop") {
         const startedAt = Date.now();
         const t = window.setInterval(() => {
-          // stop after ~30s
           if (Date.now() - startedAt > 30000) {
             window.clearInterval(t);
             return;
@@ -574,7 +611,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   };
 
   const renderBranchCard = (b: Branch) => {
-    const isRunning = b.container_status === "running";
+    const effectiveContainerStatus = confirmedRunning[b.id] ? "running" : b.container_status;
+    const isRunning = effectiveContainerStatus === "running";
     const rawUrl = String(b.server_url_nginx || "").trim();
     // Force http always (SSL/protocol switch will be manual later)
     const appUrl = rawUrl ? `http://${rawUrl.replace(/^https?:\/\//i, "")}` : "";
@@ -599,7 +637,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             </span>
           </div>
           <div className="text-xs text-white/50 mt-1 flex flex-wrap items-center gap-2 font-mono">
-            <span className={statusColor}>● {b.container_status || "STOPPED"}</span>
+            <span className={statusColor}>● {effectiveContainerStatus || "STOPPED"}</span>
             {b.type_deploy ? (
               <span className="text-white/30" title="type_deploy">
                 type: {b.type_deploy}
@@ -661,11 +699,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
                 size="xs"
                 variant="default"
                 className="bg-black/20 hover:bg-emerald-900/40 hover:text-emerald-200 border-white/10"
-                loading={busy[b.id] === "start"}
+                loading={busy[b.id] === "recover"}
                 disabled={isBusy(b.id)}
-                onClick={() => runAction(b.id, "start")}
+                onClick={() => runAction(b.id, "recover")}
               >
-                ▶ Start
+                🟢 Levantar
               </Button>
             ) : null}
 
