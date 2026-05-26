@@ -75,12 +75,12 @@ function summarizeBranchStatus(payload: any): BranchStatusSnapshot {
   const ps = extractPsText(payload);
   const lines = ps
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line: string) => line.trim())
     .filter(Boolean);
 
-  const serviceLines = lines.filter((line) => !/^name\s+image\s+command/i.test(line));
-  const odooLine = serviceLines.find((line) => /odoo/i.test(line)) || "";
-  const dbLine = serviceLines.find((line) => /\bdb\b/i.test(line)) || "";
+  const serviceLines = lines.filter((line: string) => !/^name\s+image\s+command/i.test(line));
+  const odooLine = serviceLines.find((line: string) => /odoo/i.test(line)) || "";
+  const dbLine = serviceLines.find((line: string) => /\bdb\b/i.test(line)) || "";
 
   const odooUp = /\bodoo\b.*\bup\b/i.test(odooLine) || /\bodoo\b.*\bhealthy\b/i.test(odooLine);
   const dbUp = /\bdb\b.*\bup\b/i.test(dbLine) || /\bdb\b.*\bhealthy\b/i.test(dbLine);
