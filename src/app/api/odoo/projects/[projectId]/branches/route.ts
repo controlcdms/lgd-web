@@ -56,7 +56,7 @@ export async function GET(
     rpcAuth.uid,
     rpcAuth.apiKey,
     "server.branches",
-    [["repository_id", "=", projectId], ["active", "=", true], ["container_status", "!=", "removed"]],
+    [["repository_id", "=", projectId]],
     [
       "id",
       "name",
