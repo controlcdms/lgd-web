@@ -11,6 +11,7 @@ type M2O = false | [number, string];
 type Project = {
   id: number;
   repo_name: string;
+  project_states?: string;
   progress_status?: string;
   active?: boolean;
   base_version?: string;
@@ -21,10 +22,15 @@ type Project = {
   ssh_url?: string;
 };
 
+function isVisibleProject(project: Project) {
+  const state = String(project?.project_states || "").trim().toLowerCase();
+  return project?.active !== false && state !== "expired" && state !== "archived";
+}
+
 export default function ProjectsClient({ initialProjects }: { initialProjects?: Project[] }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>(initialProjects || []);
+  const [projects, setProjects] = useState<Project[]>((initialProjects || []).filter(isVisibleProject));
 
   const summaryLoadedRef = useRef<Set<number>>(new Set());
   const summaryInflightRef = useRef<Set<number>>(new Set());
@@ -84,7 +90,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects?: 
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
 
-      const baseProjects = (j.projects || []) as Project[];
+      const baseProjects = ((j.projects || []) as Project[]).filter(isVisibleProject);
       setProjects(baseProjects);
 
       summaryLoadedRef.current = new Set();

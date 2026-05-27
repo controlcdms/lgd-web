@@ -64,6 +64,11 @@ type BranchStatusSnapshot = {
   checkedAt: number;
 };
 
+function isVisibleBranch(branch: Branch) {
+  const status = String(branch?.branch_status || "").trim().toLowerCase();
+  return status !== "expired" && status !== "archived";
+}
+
 function extractPsText(payload: any) {
   if (typeof payload?.ps === "string") return payload.ps;
   if (typeof payload?.result?.ps === "string") return payload.result.ps;
@@ -319,7 +324,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
         return d;
       })
-      .then((d) => setBranches(d?.branches || []))
+      .then((d) => setBranches((d?.branches || []).filter(isVisibleBranch)))
       .catch((e) => {
         setBranches([]);
         setError(e?.message || "Error cargando ramas");
@@ -381,7 +386,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         return d;
       })
       .then((d) => {
-        const base = d?.branches || [];
+        const base = (d?.branches || []).filter(isVisibleBranch);
         setBranches(base);
 
         // Background enrich (release/image) without blocking UI
@@ -391,7 +396,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           .then((rr) => rr.json().catch(() => ({})))
           .then((dd) => {
             if (!dd?.ok || !Array.isArray(dd?.branches)) return;
-            setBranches(dd.branches);
+            setBranches(dd.branches.filter(isVisibleBranch));
           })
           .catch(() => {
             // ignore enrich errors
