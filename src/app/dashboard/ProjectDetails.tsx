@@ -67,7 +67,8 @@ type BranchStatusSnapshot = {
 
 function isVisibleBranch(branch: Branch) {
   const status = String(branch?.branch_status || "").trim().toLowerCase();
-  return status !== "expired" && status !== "archived";
+  const containerStatus = String(branch?.container_status || "").trim().toLowerCase();
+  return branch?.active !== false && status !== "expired" && status !== "archived" && containerStatus !== "removed";
 }
 
 function extractPsText(payload: any) {
