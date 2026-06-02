@@ -65,6 +65,18 @@ type BranchStatusSnapshot = {
   checkedAt: number;
 };
 
+type RecoverResultSnapshot = {
+  ok: boolean;
+  action?: string;
+  reason?: string;
+  message?: string;
+  trace_id?: string;
+  verification?: string;
+  container_status?: string;
+  error?: string;
+  checkedAt: number;
+};
+
 function isVisibleBranch(branch: Branch) {
   const status = String(branch?.branch_status || "").trim().toLowerCase();
   const containerStatus = String(branch?.container_status || "").trim().toLowerCase();
@@ -156,6 +168,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [error, setError] = useState<string | null>(null);
   const [confirmedRunning, setConfirmedRunning] = useState<Record<number, boolean>>({});
   const [statusByBranch, setStatusByBranch] = useState<Record<number, BranchStatusSnapshot>>({});
+  const [recoverResultByBranch, setRecoverResultByBranch] = useState<Record<number, RecoverResultSnapshot>>({});
 
   // ✅ acciones por rama (SIN nulls)
   const [busy, setBusy] = useState<Partial<Record<number, ActionKind>>>({});
@@ -364,6 +377,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     setBusy({});
     setConfirmedRunning({});
     setStatusByBranch({});
+    setRecoverResultByBranch({});
 
     if (!projectId) {
       setBranches([]);
@@ -622,6 +636,22 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.error || `HTTP ${r.status}`);
 
+      if (action === "recover") {
+        setRecoverResultByBranch((prev) => ({
+          ...prev,
+          [branchId]: {
+            ok: Boolean(d?.ok !== false),
+            action: typeof d?.result?.action === "string" ? d.result.action : undefined,
+            reason: typeof d?.result?.reason === "string" ? d.result.reason : undefined,
+            message: typeof d?.result?.message === "string" ? d.result.message : undefined,
+            trace_id: typeof d?.result?.trace_id === "string" ? d.result.trace_id : undefined,
+            verification: typeof d?.result?.verification === "string" ? d.result.verification : undefined,
+            container_status: typeof d?.result?.container_status === "string" ? d.result.container_status : undefined,
+            checkedAt: Date.now(),
+          },
+        }));
+      }
+
       reload();
       if (action === "stop") {
         setConfirmedRunning((prev) => {
@@ -665,6 +695,16 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         }, 2000);
       }
     } catch (e: any) {
+      if (action === "recover") {
+        setRecoverResultByBranch((prev) => ({
+          ...prev,
+          [branchId]: {
+            ok: false,
+            error: e?.message || "Error ejecutando recover",
+            checkedAt: Date.now(),
+          },
+        }));
+      }
       setError(e?.message || "Error ejecutando acción");
     } finally {
       setBusy((p) => {
@@ -761,6 +801,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
 
   const renderBranchCard = (b: Branch) => {
     const checkedStatus = statusByBranch[b.id];
+    const recoverResult = recoverResultByBranch[b.id];
     const effectiveContainerStatus = confirmedRunning[b.id] ? "running" : b.container_status;
     const isRunning = effectiveContainerStatus === "running";
     const rawUrl = String(b.server_url_nginx || "").trim();
@@ -976,6 +1017,39 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             >
               🗑 Kill
             </Button>
+          </div>
+        ) : null}
+
+        {recoverResult ? (
+          <div className={`mt-3 w-full rounded-xl border p-3 text-xs ${recoverResult.ok ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-100" : "border-red-500/30 bg-red-500/10 text-red-100"}`}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono">
+              <span><span className="text-white/45">recover:</span> {recoverResult.ok ? "ok" : "error"}</span>
+              <span><span className="text-white/45">action:</span> {recoverResult.action || "—"}</span>
+              <span><span className="text-white/45">reason:</span> {recoverResult.reason || "—"}</span>
+              <span>
+                <span className="text-white/45">trace:</span>{" "}
+                {recoverResult.trace_id ? (
+                  <button
+                    type="button"
+                    className="underline decoration-dotted underline-offset-2 hover:text-cyan-50"
+                    title="Copiar trace_id"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(recoverResult.trace_id || "");
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                  >
+                    {recoverResult.trace_id}
+                  </button>
+                ) : "—"}
+              </span>
+              <span><span className="text-white/45">status:</span> {recoverResult.container_status || "—"}</span>
+            </div>
+            <div className="mt-2 text-[11px] text-white/80">
+              {recoverResult.message || recoverResult.error || recoverResult.verification || "Sin detalle adicional."}
+            </div>
           </div>
         ) : null}
       </div>
