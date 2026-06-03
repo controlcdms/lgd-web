@@ -24,7 +24,6 @@ type Branch = {
   release_id?: any;
   current_docker_image?: string | null;
   other_server_docker_image?: string | null;
-  jenkins_url_html?: string | null;
   instructions_dev?: string | null;
   server_url_nginx?: string | null;
 };
