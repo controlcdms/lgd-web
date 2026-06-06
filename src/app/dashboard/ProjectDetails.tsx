@@ -151,6 +151,72 @@ function checkedStatusClass(state?: BranchStatusSnapshot["state"]) {
   }
 }
 
+function containerStatusTone(status?: string) {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "running") return "text-emerald-400";
+  if (value === "starting" || value === "created") return "text-amber-300";
+  return "text-zinc-500";
+}
+
+function branchRecordBadgeClass(status?: string, isRunning?: boolean) {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "created") {
+    return isRunning
+      ? "border-emerald-500/30 text-emerald-300 bg-emerald-500/10"
+      : "border-amber-500/30 text-amber-200 bg-amber-500/10";
+  }
+  return "border-white/10 text-white/40 bg-white/5";
+}
+
+function buildDeployAlert(
+  effectiveContainerStatus?: string,
+  checkedStatus?: BranchStatusSnapshot,
+) {
+  const status = String(effectiveContainerStatus || "").trim().toLowerCase();
+
+  if (checkedStatus?.state === "down") {
+    return {
+      tone: "border-red-500/30 bg-red-500/10 text-red-100",
+      title: "Este deploy no levantó",
+      message: checkedStatus.detail || "El satélite ve el stack caído aunque el deploy fue creado.",
+    };
+  }
+
+  if (checkedStatus?.state === "partial") {
+    return {
+      tone: "border-amber-500/30 bg-amber-500/10 text-amber-100",
+      title: "Deploy incompleto",
+      message: checkedStatus.detail || "Solo una parte del stack quedó arriba.",
+    };
+  }
+
+  if (checkedStatus?.state === "error") {
+    return {
+      tone: "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-100",
+      title: "No se pudo verificar el deploy",
+      message: checkedStatus.detail || "La consulta al satélite devolvió error.",
+    };
+  }
+
+  if (status === "starting") {
+    return {
+      tone: "border-amber-500/30 bg-amber-500/10 text-amber-100",
+      title: "Deploy en arranque",
+      message: "La rama quedó en starting. Si después del refresh sigue igual, algo no levantó bien y conviene revisar logs.",
+    };
+  }
+
+  if (status === "created") {
+    return {
+      tone: "border-amber-500/30 bg-amber-500/10 text-amber-100",
+      title: "Deploy creado pero todavía no levantado",
+      message: "La rama existe en LGD, pero no aparece corriendo todavía. Puedes verificar con Status o intentar Levantar.",
+    };
+  }
+
+  return null;
+}
+
 function validateBranchName(name: string) {
   const v = name.trim();
   if (!v) return "Ponle nombre a la rama";
@@ -833,8 +899,9 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     // Local branches should not have start/stop/kill buttons.
     // Some legacy data uses type_deploy=="local" instead of "local_deploy".
     const isLocal = b.type_deploy === "local_deploy" || b.type_deploy === "local";
-    const statusColor = isRunning ? "text-emerald-400" : "text-zinc-500";
+    const statusColor = containerStatusTone(effectiveContainerStatus);
     const statusBg = isRunning ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/5 border-white/10";
+    const deployAlert = buildDeployAlert(effectiveContainerStatus, checkedStatus);
 
     return (
       <div
@@ -845,8 +912,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="break-all font-mono text-sm text-white/90">{b.name}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 text-white/50 bg-white/5">#{b.id}</span>
-            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${b.branch_status === 'created' ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/40 bg-white/5'
-              }`}>
+            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${branchRecordBadgeClass(b.branch_status, isRunning)}`}>
               {b.branch_status || "UNKNOWN"}
             </span>
           </div>
@@ -912,6 +978,13 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               </span>
             ) : null}
           </div>
+
+          {deployAlert ? (
+            <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${deployAlert.tone}`}>
+              <p className="font-semibold">⚠ {deployAlert.title}</p>
+              <p className="mt-1 text-[11px] text-white/85">{deployAlert.message}</p>
+            </div>
+          ) : null}
         </div>
 
         {!isLocal ? (
