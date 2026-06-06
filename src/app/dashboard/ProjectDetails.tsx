@@ -316,10 +316,15 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
   const [releaseOptions, setReleaseOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null);
 
+  const getDefaultCreateType = (): DeployType => {
+    const hasProduction = branches.some((b) => normalizeTypeDeploy(b.type_deploy) === "production_deploy");
+    return hasProduction ? "staging_deploy" : "testing_deploy";
+  };
+
   const resetCreateState = () => {
     setShowCreate(false);
     setNewName("");
-    setNewType("staging_deploy");
+    setNewType(getDefaultCreateType());
     setDefaultsLoading(false);
     setBaseVersionName(null);
     setReleaseOptions([]);
@@ -580,6 +585,11 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       return;
     }
 
+    if (newType === "staging_deploy" && !hasProductionBranch) {
+      setError("No se puede crear staging sin una rama production activa");
+      return;
+    }
+
     if (releaseOptions.length > 0 && !selectedReleaseId) {
       setError("Elige un release");
       return;
@@ -782,6 +792,20 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       (b) => !["production_deploy", "staging_deploy", "testing_deploy", "local_deploy"].includes(normalizeTypeDeploy(b.type_deploy) || "")
     ),
   };
+  const hasProductionBranch = groupedBranches.production.length > 0;
+
+  useEffect(() => {
+    if (!hasProductionBranch && newType === "staging_deploy") {
+      setNewType("testing_deploy");
+    }
+  }, [hasProductionBranch, newType]);
+
+  const createTypeOptions = [
+    { value: "production_deploy", label: "🔴 Production" },
+    ...(hasProductionBranch ? [{ value: "staging_deploy", label: "🟡 Staging" }] : []),
+    { value: "testing_deploy", label: "🔵 Testing" },
+    { value: "local_deploy", label: "⚪ Local" },
+  ];
 
   const renderBranchGroup = (title: string, items: Branch[], colorClass: string) => {
     if (items.length === 0) return null;
@@ -1086,6 +1110,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             className="flex items-center gap-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-3 py-1.5 text-xs font-mono transition-colors"
             onClick={() => {
               setError(null);
+              setNewType(getDefaultCreateType());
               setShowCreate(true);
             }}
           >
@@ -1388,22 +1413,23 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
             label={<span className="text-xs uppercase text-white/50 font-bold">Environment Type</span>}
             value={newType}
             onChange={(v) => {
-              const t = (v as DeployType) || "staging_deploy";
+              const t = (v as DeployType) || getDefaultCreateType();
               setNewType(t);
               setSelectedReleaseId(null);
               setError(null);
             }}
-            data={[
-              { value: "production_deploy", label: "🔴 Production" },
-              { value: "staging_deploy", label: "🟡 Staging" },
-              { value: "testing_deploy", label: "🔵 Testing" },
-              { value: "local_deploy", label: "⚪ Local" },
-            ]}
+            data={createTypeOptions}
             disabled={creating}
             classNames={{
               input: "bg-white/5 border-white/10 text-white"
             }}
           />
+
+          {!hasProductionBranch ? (
+            <div className="text-[11px] text-amber-200/80 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+              Staging solo aparece cuando este proyecto ya tiene una rama production activa.
+            </div>
+          ) : null}
 
           {defaultsLoading ? (
             <Group gap="sm" className="py-2">

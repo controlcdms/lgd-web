@@ -25,6 +25,18 @@ async function ensureProjectAccessAsUser(req: Request, projectId: number) {
   return rows?.[0] || null;
 }
 
+async function hasProductionBranch(uid: number, apiKey: string, projectId: number) {
+  const rows = await odooSearchReadAsUser(
+    uid,
+    apiKey,
+    "server.branches",
+    [["repository_id", "=", projectId], ["name", "=", "production"], ["active", "=", true], ["branch_status", "not in", ["expired", "archived"]]],
+    ["id"],
+    1
+  );
+  return rows.length > 0;
+}
+
 export async function POST(req: Request, ctx: { params: Promise<{ projectId: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,6 +70,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
       return NextResponse.json({ ok: false, error: "Invalid deployType" }, { status: 400 });
     }
     const deployType = rawDeployType as DeployType;
+
+    if (deployType === "staging_deploy" && !(await hasProductionBranch(rpcAuth.uid, rpcAuth.apiKey, repositoryId))) {
+      return NextResponse.json({ ok: false, error: "No se puede crear staging sin una rama production activa" }, { status: 400 });
+    }
 
     if (deployType === "production_deploy") {
       const existing = await odooSearchReadAsUser(
