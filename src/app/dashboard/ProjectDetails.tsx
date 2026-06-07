@@ -910,7 +910,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="break-all font-mono text-sm text-white/90">{b.name}</span>
+            <span className="break-words font-mono text-sm text-white/90">{b.name}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 text-white/50 bg-white/5">#{b.id}</span>
             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${branchRecordBadgeClass(b.branch_status, isRunning)}`}>
               {b.branch_status || "UNKNOWN"}
@@ -1202,7 +1202,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           className="bg-red-500/10 border border-red-500/20 text-red-200"
           onClose={() => setError(null)}
         >
-          {error}
+          <div className="whitespace-pre-wrap break-words text-sm leading-6 text-red-100/95">{error}</div>
         </Alert>
       )}
 
