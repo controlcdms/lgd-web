@@ -906,9 +906,9 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
     return (
       <div
         key={b.id}
-        className={`group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border p-4 transition-all duration-200 ${statusBg} hover:bg-opacity-50 hover:border-white/20`}
+        className={`group flex flex-col gap-4 rounded-xl border p-4 transition-all duration-200 md:flex-row md:flex-wrap md:items-start ${statusBg} hover:bg-opacity-50 hover:border-white/20`}
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[220px] flex-1">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="break-words font-mono text-sm text-white/90">{b.name}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 text-white/50 bg-white/5">#{b.id}</span>
@@ -982,7 +982,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
           {deployAlert ? (
             <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${deployAlert.tone}`}>
               <p className="font-semibold">⚠ {deployAlert.title}</p>
-              <p className="mt-1 text-[11px] text-white/85">{deployAlert.message}</p>
+              <p className="mt-1 text-[11px] whitespace-pre-wrap break-words text-white/85">{deployAlert.message}</p>
             </div>
           ) : null}
         </div>
@@ -1117,8 +1117,8 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
         ) : null}
 
         {recoverResult ? (
-          <div className={`mt-3 w-full rounded-xl border p-3 text-xs ${recoverResult.ok ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-100" : "border-red-500/30 bg-red-500/10 text-red-100"}`}>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono">
+          <div className={`order-last w-full rounded-xl border p-3 text-xs ${recoverResult.ok ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-100" : "border-red-500/30 bg-red-500/10 text-red-100"}`}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono break-words">
               <span><span className="text-white/45">recover:</span> {recoverResult.ok ? "ok" : "error"}</span>
               <span><span className="text-white/45">action:</span> {recoverResult.action || "—"}</span>
               <span><span className="text-white/45">reason:</span> {recoverResult.reason || "—"}</span>
@@ -1143,7 +1143,7 @@ export default function ProjectDetails({ projectId }: { projectId: number | null
               </span>
               <span><span className="text-white/45">status:</span> {recoverResult.container_status || "—"}</span>
             </div>
-            <div className="mt-2 text-[11px] text-white/80">
+            <div className="mt-2 whitespace-pre-wrap break-words text-[11px] text-white/80">
               {recoverResult.message || recoverResult.error || recoverResult.verification || "Sin detalle adicional."}
             </div>
           </div>
